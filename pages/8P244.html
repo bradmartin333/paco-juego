@@ -12,9 +12,209 @@
 </head>
 
 <body onload="loadCode()">
-    <div class="main">
-        Wow, vad hände? Jag måste stanna upp och tänka på fladdermöss ett ögonblick.
+    <div class="main" style="text-align: center;">
+        <p>Wow, vad hände? Åh, toppen - nu finns det ormar.</p>
+        <p id="timer" style="font-weight: bold; font-size: 1.2em;">Tid kvar: 30</p>
+        <canvas id="gameCanvas" width="400" height="400"
+            style="border: 2px solid #333; background-color: #f0f0f0; cursor: none; touch-action: none; display: block; margin: 0 auto;"></canvas>
     </div>
+
+    <script>
+        (function () {
+            const canvas = document.getElementById('gameCanvas');
+            const ctx = canvas.getContext('2d');
+            const gridSize = 20;
+            const tileCount = canvas.width / gridSize;
+
+            let player = { x: 10, y: 10 };
+            let snakes = [];
+            const snakeCount = 5;
+            const snakeLength = 10;
+
+            let timeLeft = 30;
+            let gameRunning = true;
+            let lastTimeStamp = 0;
+            let tickRate = 100; // ms per frame logic
+            let timeAccumulator = 0;
+
+            // Handle input
+            function updatePlayerPos(clientX, clientY) {
+                const rect = canvas.getBoundingClientRect();
+                const scaleX = canvas.width / rect.width;
+                const scaleY = canvas.height / rect.height;
+
+                const x = (clientX - rect.left) * scaleX;
+                const y = (clientY - rect.top) * scaleY;
+
+                player.x = Math.floor(x / gridSize);
+                player.y = Math.floor(y / gridSize);
+
+                // Clamp to grid
+                if (player.x < 0) player.x = 0;
+                if (player.x >= tileCount) player.x = tileCount - 1;
+                if (player.y < 0) player.y = 0;
+                if (player.y >= tileCount) player.y = tileCount - 1;
+            }
+
+            canvas.addEventListener('mousemove', (e) => {
+                updatePlayerPos(e.clientX, e.clientY);
+            });
+
+            canvas.addEventListener('touchmove', (e) => {
+                e.preventDefault(); // prevent scrolling
+                updatePlayerPos(e.touches[0].clientX, e.touches[0].clientY);
+            }, { passive: false });
+
+            // Initialize Snakes
+            function initSnakes() {
+                snakes = [];
+                for (let i = 0; i < snakeCount; i++) {
+                    let startX = Math.floor(Math.random() * tileCount);
+                    let startY = Math.floor(Math.random() * tileCount);
+                    // Ensure not spawning on player
+                    while (Math.abs(startX - player.x) < 5 && Math.abs(startY - player.y) < 5) {
+                        startX = Math.floor(Math.random() * tileCount);
+                        startY = Math.floor(Math.random() * tileCount);
+                    }
+
+                    snakes.push({
+                        body: Array(snakeLength).fill({ x: startX, y: startY }),
+                        dx: Math.random() > 0.5 ? 1 : -1,
+                        dy: 0,
+                        lastChange: 0
+                    });
+                }
+            }
+
+            function update(deltaTime) {
+                if (!gameRunning) return;
+
+                snakes.forEach(snake => {
+                    // Randomly change direction
+                    if (Math.random() < 0.1) {
+                        const axis = Math.random() > 0.5 ? 'x' : 'y';
+                        if (axis === 'x') {
+                            snake.dx = Math.random() > 0.5 ? 1 : -1;
+                            snake.dy = 0;
+                        } else {
+                            snake.dx = 0;
+                            snake.dy = Math.random() > 0.5 ? 1 : -1;
+                        }
+                    }
+
+                    // Move head
+                    let head = { ...snake.body[0] };
+                    head.x += snake.dx;
+                    head.y += snake.dy;
+
+                    if (head.x < 0 || head.x >= tileCount || head.y < 0 || head.y >= tileCount) {
+                        head.x -= snake.dx;
+                        head.y -= snake.dy;
+                        // Pick new direction
+                        const axis = snake.dx !== 0 ? 'y' : 'x';
+                        if (axis === 'y') {
+                            // Moving horizontally, hit vertical wall. Switch to vertical.
+                            let validDirs = [];
+                            if (head.y > 0) validDirs.push(-1); // Up
+                            if (head.y < tileCount - 1) validDirs.push(1); // Down
+                            // If stuck (1x1 hole?), default to 0 (stop) or something, but usually there's way out
+                            if (validDirs.length === 0) validDirs.push(1);
+
+                            snake.dx = 0;
+                            snake.dy = validDirs[Math.floor(Math.random() * validDirs.length)];
+                        } else {
+                            // Moving vertically, hit horizontal wall. Switch to horizontal.
+                            let validDirs = [];
+                            if (head.x > 0) validDirs.push(-1); // Left
+                            if (head.x < tileCount - 1) validDirs.push(1); // Right
+                            if (validDirs.length === 0) validDirs.push(1);
+
+                            snake.dx = validDirs[Math.floor(Math.random() * validDirs.length)];
+                            snake.dy = 0;
+                        }
+                        return;
+                    }
+
+                    snake.body.unshift(head);
+                    snake.body.pop();
+                });
+
+                // Collision Detection with Player
+                for (let snake of snakes) {
+                    for (let segment of snake.body) {
+                        if (segment.x === player.x && segment.y === player.y) {
+                            gameOver();
+                            return;
+                        }
+                    }
+                }
+            }
+
+            function draw() {
+                // Clear
+                ctx.fillStyle = '#f0f0f0';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                // Draw Player
+                ctx.fillStyle = 'blue';
+                ctx.fillRect(player.x * gridSize, player.y * gridSize, gridSize - 2, gridSize - 2);
+
+                // Draw Snakes
+                ctx.fillStyle = 'green';
+                snakes.forEach(snake => {
+                    snake.body.forEach(segment => {
+                        ctx.fillRect(segment.x * gridSize, segment.y * gridSize, gridSize - 2, gridSize - 2);
+                    });
+                });
+            }
+
+            function gameLoop(timeStamp) {
+                if (!lastTimeStamp) lastTimeStamp = timeStamp;
+                const deltaTime = timeStamp - lastTimeStamp;
+                lastTimeStamp = timeStamp;
+
+                timeAccumulator += deltaTime;
+
+                if (timeAccumulator >= tickRate) {
+                    update();
+                    draw();
+                    timeAccumulator -= tickRate;
+                }
+
+                if (gameRunning) {
+                    requestAnimationFrame(gameLoop);
+                }
+            }
+
+              function gameOver() {
+                timeLeft = 30;
+                document.getElementById('timer').innerText = 'Tid kvar: ' + timeLeft + 's';
+                initSnakes();
+            }
+
+
+            function gameWin() {
+                gameRunning = false;
+                alert('Du klarade det.');
+            }
+
+            // Start
+            initSnakes();
+            requestAnimationFrame(gameLoop);
+
+            // Timer countdown
+            setInterval(() => {
+                if (gameRunning) {
+                    timeLeft--;
+                    document.getElementById('timer').innerText = 'Tid kvar: ' + timeLeft + 's';
+                    if (timeLeft <= 0) {
+                        gameWin();
+                    }
+                }
+            }, 1000);
+
+        })();
+    </script>
 
     <div class="navbar">
         <a href="../index.html">Nytt Spel</a>
