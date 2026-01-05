@@ -1,5 +1,17 @@
 # C++ RayLib WASM build setup
 
+## THIS IS BROKEN FOR WSL2 SINCE JAN2026
+
+```bash
+Traceback (most recent call last):
+  File "/home/${USER}$/emsdk/upstream/emscripten/emcc.py", line 32, in <module>
+    from tools import (
+  File "/home/${USER}/emsdk/upstream/emscripten/tools/building.py", line 107
+    match settings.SUPPORT_LONGJMP:
+          ^
+SyntaxError: invalid syntax
+```
+
 emscripten
 - `cd ~`
 - `git clone https://github.com/emscripten-core/emsdk.git`
