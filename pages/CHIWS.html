@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="es">
+
+<head>
+    <title>Paco Juego</title>
+    <meta name="description" content="Entrar en la cueva negra">
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="../style.css" />
+    <script type="text/javascript" src="../app.js"></script>
+    <style>
+        svg {
+            transition: transform 0.2s ease, box-shadow 0.2s ease, filter 0.2s ease;
+        }
+
+        svg:active {
+            transform: scale(0.9);
+            box-shadow: 0 0 5px rgba(255, 0, 0, 0.7);
+            filter: brightness(120%);
+        }
+    </style>
+</head>
+
+<body onload="loadCode()">
+    <div id="text" class="main"></div>
+
+    <hr>
+    <div style="text-align: center;">
+        <svg id="red" width="200" height="200">
+            <rect width="200" height="200" style="fill:red;stroke-width:3;stroke:rgb(0,0,0)" />
+        </svg>
+        <svg id="blueyellow" width="200" height="200">
+            <defs>
+                <linearGradient id="yellowBlueGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                <stop offset="0%" style="stop-color:yellow;stop-opacity:1" />
+                <stop offset="100%" style="stop-color:blue;stop-opacity:1" />
+                </linearGradient>
+            </defs>
+            <rect width="200" height="200" style="fill:url(#yellowBlueGradient);stroke-width:3;stroke:rgb(0,0,0)" />
+        </svg>
+    </div>
+
+    <div class="navbar">
+        <a href="../index.html">Nuevo Juego</a>
+        <a href="../special-code/index.html">Código Especial</a>
+        <a href="javascript:copyCode()" id="specialCode"></a>
+    </div>
+
+    <script>
+        const spanish = 'Ocho murciélagos cuelgan del techo de la cueva. Cantan siguiendo un patrón.';
+        const swedish = 'Åtta fladdermöss hänger från grotttaket. De sjunger i ett mönster.';
+        const myText = document.getElementById("text");
+        const redBox = document.getElementById("red");
+        const blueyellowBox = document.getElementById("blueyellow");
+
+        const beepA = new Audio("../assets/beepA.mp3");
+        const beepB = new Audio("../assets/beepB.mp3");
+
+        let counter = 0;
+        let score = 0;
+        let clicked = 0;
+
+        function updateText(text) {
+            myText.textContent = text;
+            if (clicked === 0) {
+                score = 0;
+                console.log("RESET");
+            }
+            clicked = 0;
+        }
+
+        updateText(spanish);
+        const intervalId = setInterval(() => {
+            counter++;
+            if (counter === 5) {
+                updateText(swedish);
+            } else if (counter === 6) {
+                updateText(spanish);
+            } else if (counter === 7) {
+                updateText(swedish);
+            } else if (counter === 10) {
+                updateText(spanish);
+                counter = 0;
+            }
+        }, 1000);
+
+        redBox.addEventListener('click', function() {
+            if (myText.textContent === spanish && clicked === 0) {
+                score++;
+                clicked = 1;
+                if (score === 5) {
+                    window.location.href = "8P244.html";
+                } else {
+                    beepA.play();
+                }
+            } else {
+                score = 0;
+            }
+        });
+
+        blueyellowBox.addEventListener('click', function() {
+            if (myText.textContent === swedish && clicked === 0) {
+                score++;
+                clicked = 1;
+                if (score === 5) {
+                    window.location.href = "8P244.html";
+                } else {
+                    beepB.play();
+                }
+            } else {
+                score = 0;
+            }
+        });
+    </script>
+</body>
+
+</html>
