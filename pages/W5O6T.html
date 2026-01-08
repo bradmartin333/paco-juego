@@ -138,14 +138,10 @@
             ctx.fill();
         }
 
-        function drawCloud(x, y, size) {
-            ctx.fillStyle = '#FFFFFF';
-            ctx.beginPath();
-            ctx.arc(s(x), s(y), s(20) * size, 0, Math.PI * 2);
-            ctx.arc(s(x + 25 * size), s(y - 10 * size), s(25) * size, 0, Math.PI * 2);
-            ctx.arc(s(x + 55 * size), s(y), s(20) * size, 0, Math.PI * 2);
-            ctx.arc(s(x + 25 * size), s(y + 10 * size), s(22) * size, 0, Math.PI * 2);
-            ctx.fill();
+        function drawEmoji(x, y, size, emoji) {
+            ctx.fillStyle = '#000';
+            ctx.font = `${s(size)}px Arial`;
+            ctx.fillText(emoji, s(x), s(y));
         }
 
         function draw() {
@@ -161,8 +157,7 @@
             }
 
             // Player
-            ctx.font = `${s(70)}px Arial`;
-            ctx.fillText("🤠", canvas.width / 2, s(playerY) + s(40));
+            drawEmoji(canvas.width / 2, s(playerY) + s(40), 70, "🤠");
 
             // Rope in front of player if swinging forward
             if (ropeDirection > 0) {
@@ -178,11 +173,11 @@
             }
 
             // Clouds
-            drawCloud(50, 80, 1);
-            drawCloud(400, 50, 0.8);
-            drawCloud(250, 120, 1.2);
-            drawCloud(150, 40, 0.7);
-            drawCloud(500, 100, 1);
+            drawEmoji(50, 225, 80, "☁️");
+            drawEmoji(400, 100, 140, "☁️");
+            drawEmoji(250, 170, 90, "🌤️");
+            drawEmoji(150, 100, 110, "☁️");
+            drawEmoji(500, 200, 120, "☁️");
         }
 
         function gameLoop() {
