@@ -87,7 +87,7 @@
         }
 
         function updateRope() {
-            ropeAngle += ropeDirection * ropeSpeed * scale;
+            ropeAngle += ropeDirection * ropeSpeed;
 
             absRopeAngle = Math.abs(ropeAngle);
             bottom = ROPE_SWING_RANGE * scale;
