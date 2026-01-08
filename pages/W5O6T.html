@@ -12,24 +12,177 @@
 </head>
 
 <body onload="loadCode()">
-    <div class="imgbox">
-        <img class="center-fit" src='https://upload.wikimedia.org/wikipedia/commons/thumb/1/1e/SITIO-EN-CONSTRUCCION.jpg/799px-SITIO-EN-CONSTRUCCION.jpg'>
-    </div>
-
-    <div class="main">
-        
-    </div>
-
-    <hr>
-    <div style="text-align: center;">
-        <a class="choice" href="#"></a><br>
-    </div>
-
     <div class="navbar">
         <a href="../index.html">Nuevo Juego</a>
         <a href="../special-code/index.html">Código Especial</a>
         <a href="javascript:copyCode()" id="specialCode"></a>
     </div>
+
+    <div id="gameContainer">
+        <canvas id="gameCanvas"
+            style="display: block; background: #87CEEB; width: 100%; max-width: 600px; margin: 0 auto;"></canvas>
+    </div>
+
+    <script>
+        // Constants
+        const BASE_WIDTH = 600;
+        const BASE_HEIGHT = 600;
+        const GROUND_Y = 420;
+        const PLAYER_GROUND_Y = 400;
+        const PLAYER_RADIUS = 30;
+        const ROPE_RADIUS = 150;
+        const ROPE_SWING_RANGE = Math.PI * 30;
+        const GRAVITY = 0.8;
+        const JUMP_POWER = -15;
+
+        // Game state
+        let canvas, ctx, scale;
+        let playerY, playerJumping = false, jumpVelocity = 0;
+        let ropeAngle = 0, ropeDirection = 1, ropeSpeed = 2;
+
+        // Scaling helper
+        function s(value) {
+            return value * scale;
+        }
+
+        // Initialize
+        canvas = document.getElementById('gameCanvas');
+        ctx = canvas.getContext('2d');
+        resizeCanvas();
+        window.addEventListener('resize', resizeCanvas);
+
+        function resizeCanvas() {
+            const container = canvas.parentElement;
+            const maxWidth = Math.min(container.clientWidth, 600);
+            canvas.width = maxWidth;
+            canvas.height = maxWidth;
+            scale = canvas.width / BASE_WIDTH;
+            playerY = PLAYER_GROUND_Y;
+        }
+
+        function playerJump() {
+            if (!playerJumping) {
+                playerJumping = true;
+                jumpVelocity = JUMP_POWER * scale;
+            }
+        }
+
+        function updatePlayer() {
+            if (playerJumping) {
+                jumpVelocity += GRAVITY * scale;
+                playerY += jumpVelocity;
+
+                if (playerY >= PLAYER_GROUND_Y) {
+                    playerY = PLAYER_GROUND_Y;
+                    playerJumping = false;
+                    jumpVelocity = 0;
+                }
+            }
+        }
+
+        function updateRope() {
+            ropeAngle += ropeDirection * ropeSpeed * scale;
+
+            if (Math.abs(ropeAngle) >= ROPE_SWING_RANGE * scale) {
+                ropeDirection *= -1;
+            }
+        }
+
+        function drawRope() {
+            const centerX = canvas.width / 2;
+            const groundY = s(PLAYER_GROUND_Y);
+            const ropeRad = s(ROPE_RADIUS);
+
+            // Draw rope curve
+            ctx.strokeStyle = '#654321';
+            ctx.lineWidth = s(3);
+            ctx.beginPath();
+            ctx.moveTo(centerX - ropeRad, groundY);
+            ctx.quadraticCurveTo(centerX, ropeAngle + groundY, centerX + ropeRad, groundY);
+            ctx.stroke();
+
+            // Draw rope endpoints
+            ctx.fillStyle = '#8B4513';
+            ctx.beginPath();
+            ctx.arc(centerX - ropeRad, groundY, s(5), 0, 2 * Math.PI);
+            ctx.arc(centerX + ropeRad, groundY, s(5), 0, 2 * Math.PI);
+            ctx.fill();
+        }
+
+        function drawPlayer() {
+            const centerX = canvas.width / 2;
+            const scaledPlayerY = s(playerY);
+            const radius = s(PLAYER_RADIUS);
+
+            // Draw player body
+            ctx.fillStyle = '#FF6B6B';
+            ctx.beginPath();
+            ctx.arc(centerX, scaledPlayerY, radius, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Draw eyes
+            ctx.fillStyle = '#000';
+            ctx.beginPath();
+            ctx.arc(centerX - s(10), scaledPlayerY - s(5), s(3), 0, Math.PI * 2);
+            ctx.arc(centerX + s(10), scaledPlayerY - s(5), s(3), 0, Math.PI * 2);
+            ctx.fill();
+
+            // Draw smile
+            ctx.strokeStyle = '#000';
+            ctx.lineWidth = s(2);
+            ctx.beginPath();
+            ctx.arc(centerX, scaledPlayerY + s(5), s(15), 0, Math.PI);
+            ctx.stroke();
+        }
+
+        function draw() {
+            // Clear canvas
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Draw ground
+            ctx.fillStyle = '#90EE90';
+            ctx.fillRect(0, s(GROUND_Y), canvas.width, canvas.height - s(GROUND_Y));
+
+            // Draw rope behind player if swinging forward
+            if (ropeDirection < 0) {
+                drawRope();
+            }
+
+            // Draw player
+            drawPlayer();
+
+            // Draw rope in front of player if swinging backward
+            if (ropeDirection > 0) {
+                drawRope();
+            }
+        }
+
+        function gameLoop() {
+            updatePlayer();
+            updateRope();
+            draw();
+            requestAnimationFrame(gameLoop);
+        }
+
+        // Event handlers
+        function handleJump() {
+            if (!playerJumping) {
+                playerJump();
+            }
+        }
+
+        document.addEventListener('keydown', (event) => {
+            if (event.code === 'Space') {
+                event.preventDefault();
+                handleJump();
+            }
+        });
+
+        document.addEventListener('click', handleJump);
+
+        // Start game
+        gameLoop();
+    </script>
 </body>
 
 </html>
