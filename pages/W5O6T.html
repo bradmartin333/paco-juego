@@ -24,12 +24,9 @@
     </div>
 
     <script>
-        // Constants
         const BASE_WIDTH = 600;
-        const BASE_HEIGHT = 600;
         const GROUND_Y = 420;
         const PLAYER_GROUND_Y = 400;
-        const PLAYER_RADIUS = 30;
         const ROPE_RADIUS = 150;
         const ROPE_SWING_RANGE = Math.PI * 30;
         const GRAVITY = 0.8;
@@ -37,7 +34,6 @@
         const ROPE_SPEED_INCREASE = 0.3;
         const WIN_SCORE = 10;
 
-        // Game state
         let canvas;
         let ctx;
         let scale;
@@ -52,12 +48,10 @@
         let lastRopeDirection = 1;
         let scoreElement;
 
-        // Scaling helper
         function s(value) {
             return value * scale;
         }
 
-        // Initialize
         canvas = document.getElementById('gameCanvas');
         ctx = canvas.getContext('2d');
         resizeCanvas();
@@ -65,7 +59,7 @@
 
         function resizeCanvas() {
             const container = canvas.parentElement;
-            const maxWidth = Math.min(container.clientWidth, 600);
+            const maxWidth = Math.min(container.clientWidth, BASE_WIDTH);
             canvas.width = maxWidth;
             canvas.height = maxWidth;
             scale = canvas.width / BASE_WIDTH;
@@ -128,7 +122,7 @@
             const groundY = s(PLAYER_GROUND_Y);
             const ropeRad = s(ROPE_RADIUS);
 
-            // Draw rope curve
+            // Curve
             ctx.strokeStyle = '#654321';
             ctx.lineWidth = s(3);
             ctx.beginPath();
@@ -136,7 +130,7 @@
             ctx.quadraticCurveTo(centerX, ropeAngle + groundY, centerX + ropeRad, groundY);
             ctx.stroke();
 
-            // Draw rope endpoints
+            // Endpoints
             ctx.fillStyle = '#8B4513';
             ctx.beginPath();
             ctx.arc(centerX - ropeRad, groundY, s(5), 0, 2 * Math.PI);
@@ -144,60 +138,51 @@
             ctx.fill();
         }
 
-        function drawPlayer() {
-            const centerX = canvas.width / 2;
-            const scaledPlayerY = s(playerY);
-            const radius = s(PLAYER_RADIUS);
-
-            // Draw player body
-            ctx.fillStyle = '#FF6B6B';
+        function drawCloud(x, y, size) {
+            ctx.fillStyle = '#FFFFFF';
             ctx.beginPath();
-            ctx.arc(centerX, scaledPlayerY, radius, 0, Math.PI * 2);
+            ctx.arc(s(x), s(y), s(20) * size, 0, Math.PI * 2);
+            ctx.arc(s(x + 25 * size), s(y - 10 * size), s(25) * size, 0, Math.PI * 2);
+            ctx.arc(s(x + 55 * size), s(y), s(20) * size, 0, Math.PI * 2);
+            ctx.arc(s(x + 25 * size), s(y + 10 * size), s(22) * size, 0, Math.PI * 2);
             ctx.fill();
-
-            // Draw eyes
-            ctx.fillStyle = '#000';
-            ctx.beginPath();
-            ctx.arc(centerX - s(10), scaledPlayerY - s(5), s(3), 0, Math.PI * 2);
-            ctx.arc(centerX + s(10), scaledPlayerY - s(5), s(3), 0, Math.PI * 2);
-            ctx.fill();
-
-            // Draw smile
-            ctx.strokeStyle = '#000';
-            ctx.lineWidth = s(2);
-            ctx.beginPath();
-            ctx.arc(centerX, scaledPlayerY + s(5), s(15), 0, Math.PI);
-            ctx.stroke();
         }
 
         function draw() {
-            // Clear canvas
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-            // Draw ground
+            // Ground
             ctx.fillStyle = '#90EE90';
             ctx.fillRect(0, s(GROUND_Y), canvas.width, canvas.height - s(GROUND_Y));
 
-            // Draw rope behind player if swinging backward
+            // Rope behind player if swinging backward
             if (ropeDirection < 0) {
                 drawRope();
             }
 
-            // Draw player
-            drawPlayer();
+            // Player
+            ctx.font = `${s(70)}px Arial`;
+            ctx.fillText("🤠", canvas.width / 2, s(playerY) + s(40));
 
-            // Draw rope in front of player if swinging forward
+            // Rope in front of player if swinging forward
             if (ropeDirection > 0) {
                 drawRope();
             }
 
-            // Draw score below player
+            // Score below player
             if (score < WIN_SCORE) {
                 ctx.fillStyle = '#000';
-                ctx.font = `${s(24)}px Arial`;
+                ctx.font = `${s(24)}px Courier New`;
                 ctx.textAlign = 'center';
                 ctx.fillText(10 - score, canvas.width / 2, s(GROUND_Y + 75));
             }
+
+            // Clouds
+            drawCloud(50, 80, 1);
+            drawCloud(400, 50, 0.8);
+            drawCloud(250, 120, 1.2);
+            drawCloud(150, 40, 0.7);
+            drawCloud(500, 100, 1);
         }
 
         function gameLoop() {
@@ -207,7 +192,6 @@
             requestAnimationFrame(gameLoop);
         }
 
-        // Event handlers
         function handleJump() {
             if (!playerJumping) {
                 playerJump();
@@ -223,7 +207,6 @@
 
         document.addEventListener('click', handleJump);
 
-        // Start game
         gameLoop();
     </script>
 </body>
