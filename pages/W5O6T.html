@@ -31,6 +31,7 @@
         const ROPE_SWING_RANGE = Math.PI * 30;
         const GRAVITY = 0.8;
         const JUMP_POWER = -15;
+        const STARTING_ROPE_SPEEED = 3;
         const ROPE_SPEED_INCREASE = 0.3;
         const WIN_SCORE = 10;
 
@@ -42,7 +43,7 @@
         let jumpVelocity = 0;
         let ropeAngle = 0;
         let ropeDirection = 1;
-        let ropeSpeed = 2;
+        let ropeSpeed = STARTING_ROPE_SPEEED;
         let score = 0;
         let lastScore = 0;
         let lastRopeDirection = 1;
@@ -106,7 +107,7 @@
                             }
                         } else {
                             score = 0;
-                            ropeSpeed = 2;
+                            ropeSpeed = STARTING_ROPE_SPEEED;
                         }
                     }
                 } else {
