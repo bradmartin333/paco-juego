@@ -34,11 +34,23 @@
         const ROPE_SWING_RANGE = Math.PI * 30;
         const GRAVITY = 0.8;
         const JUMP_POWER = -15;
+        const ROPE_SPEED_INCREASE = 0.3;
+        const WIN_SCORE = 10;
 
         // Game state
-        let canvas, ctx, scale;
-        let playerY, playerJumping = false, jumpVelocity = 0;
-        let ropeAngle = 0, ropeDirection = 1, ropeSpeed = 2;
+        let canvas;
+        let ctx;
+        let scale;
+        let playerY;
+        let playerJumping = false;
+        let jumpVelocity = 0;
+        let ropeAngle = 0;
+        let ropeDirection = 1;
+        let ropeSpeed = 2;
+        let score = 0;
+        let lastScore = 0;
+        let lastRopeDirection = 1;
+        let scoreElement;
 
         // Scaling helper
         function s(value) {
@@ -83,9 +95,32 @@
         function updateRope() {
             ropeAngle += ropeDirection * ropeSpeed * scale;
 
-            if (Math.abs(ropeAngle) >= ROPE_SWING_RANGE * scale) {
-                ropeDirection *= -1;
+            absRopeAngle = Math.abs(ropeAngle);
+            bottom = ROPE_SWING_RANGE * scale;
+            if (absRopeAngle >= bottom - 20) {
+                if (absRopeAngle >= bottom) {
+                    ropeDirection *= -1;
+                }
+
+                if (ropeAngle > bottom - 20) {
+                    if (lastScore === score) {
+                        if (playerJumping) {
+                            score++;
+                            ropeSpeed += ROPE_SPEED_INCREASE;
+                            if (score >= WIN_SCORE) {
+                                window.location.href = '95KK7.html';
+                            }
+                        } else {
+                            score = 0;
+                            ropeSpeed = 2;
+                        }
+                    }
+                } else {
+                    lastScore = score;
+                }
             }
+
+            lastRopeDirection = ropeDirection;
         }
 
         function drawRope() {
@@ -143,7 +178,7 @@
             ctx.fillStyle = '#90EE90';
             ctx.fillRect(0, s(GROUND_Y), canvas.width, canvas.height - s(GROUND_Y));
 
-            // Draw rope behind player if swinging forward
+            // Draw rope behind player if swinging backward
             if (ropeDirection < 0) {
                 drawRope();
             }
@@ -151,9 +186,17 @@
             // Draw player
             drawPlayer();
 
-            // Draw rope in front of player if swinging backward
+            // Draw rope in front of player if swinging forward
             if (ropeDirection > 0) {
                 drawRope();
+            }
+
+            // Draw score below player
+            if (score < WIN_SCORE) {
+                ctx.fillStyle = '#000';
+                ctx.font = `${s(24)}px Arial`;
+                ctx.textAlign = 'center';
+                ctx.fillText(10 - score, canvas.width / 2, s(GROUND_Y + 75));
             }
         }
 
