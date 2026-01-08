@@ -117,6 +117,12 @@
             lastRopeDirection = ropeDirection;
         }
 
+        function drawEmoji(x, y, size, emoji) {
+            ctx.fillStyle = '#000';
+            ctx.font = `${s(size)}px Arial`;
+            ctx.fillText(emoji, s(x), s(y));
+        }
+
         function drawRope() {
             const centerX = canvas.width / 2;
             const groundY = s(PLAYER_GROUND_Y);
@@ -131,17 +137,8 @@
             ctx.stroke();
 
             // Endpoints
-            ctx.fillStyle = '#8B4513';
-            ctx.beginPath();
-            ctx.arc(centerX - ropeRad, groundY, s(5), 0, 2 * Math.PI);
-            ctx.arc(centerX + ropeRad, groundY, s(5), 0, 2 * Math.PI);
-            ctx.fill();
-        }
-
-        function drawEmoji(x, y, size, emoji) {
-            ctx.fillStyle = '#000';
-            ctx.font = `${s(size)}px Arial`;
-            ctx.fillText(emoji, s(x), s(y));
+            drawEmoji((centerX / scale) - ROPE_RADIUS, GROUND_Y - 7, 40, "💠")
+            drawEmoji((centerX / scale) + ROPE_RADIUS, GROUND_Y - 7, 40, "💠");
         }
 
         function draw() {
@@ -157,7 +154,7 @@
             }
 
             // Player
-            drawEmoji(canvas.width / 2, s(playerY) + s(40), 70, "🤠");
+            drawEmoji((canvas.width / 2) / scale, playerY + 40, 70, "🤠");
 
             // Rope in front of player if swinging forward
             if (ropeDirection > 0) {
@@ -178,6 +175,11 @@
             drawEmoji(250, 170, 90, "🌤️");
             drawEmoji(150, 100, 110, "☁️");
             drawEmoji(500, 200, 120, "☁️");
+
+            // Draw plants
+            drawEmoji(50, GROUND_Y + 70, 40, "🌵")
+            drawEmoji(500, GROUND_Y + 90, 50, "🌵");
+            drawEmoji(130, GROUND_Y + 120, 60, "🌵");
         }
 
         function gameLoop() {
