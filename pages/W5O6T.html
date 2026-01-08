@@ -12,24 +12,200 @@
 </head>
 
 <body onload="loadCode()">
-    <div class="imgbox">
-        <img class="center-fit" src='https://upload.wikimedia.org/wikipedia/commons/thumb/1/1e/SITIO-EN-CONSTRUCCION.jpg/799px-SITIO-EN-CONSTRUCCION.jpg'>
-    </div>
-
-    <div class="main">
-        
-    </div>
-
-    <hr>
-    <div style="text-align: center;">
-        <a class="choice" href="#"></a><br>
-    </div>
-
     <div class="navbar">
         <a href="../index.html">Nuevo Juego</a>
         <a href="../special-code/index.html">Código Especial</a>
         <a href="javascript:copyCode()" id="specialCode"></a>
     </div>
+
+    <div id="gameContainer">
+        <canvas id="gameCanvas"
+            style="display: block; background: #87CEEB; width: 100%; max-width: 600px; margin: 0 auto;"></canvas>
+    </div>
+
+    <script>
+        const BASE_WIDTH = 600;
+        const GROUND_Y = 420;
+        const PLAYER_GROUND_Y = 400;
+        const ROPE_RADIUS = 150;
+        const ROPE_SWING_RANGE = Math.PI * 30;
+        const GRAVITY = 0.8;
+        const JUMP_POWER = -15;
+        const ROPE_SPEED_INCREASE = 0.3;
+        const WIN_SCORE = 10;
+
+        let canvas;
+        let ctx;
+        let scale;
+        let playerY;
+        let playerJumping = false;
+        let jumpVelocity = 0;
+        let ropeAngle = 0;
+        let ropeDirection = 1;
+        let ropeSpeed = 2;
+        let score = 0;
+        let lastScore = 0;
+        let lastRopeDirection = 1;
+        let scoreElement;
+
+        function s(value) {
+            return value * scale;
+        }
+
+        canvas = document.getElementById('gameCanvas');
+        ctx = canvas.getContext('2d');
+        resizeCanvas();
+        window.addEventListener('resize', resizeCanvas);
+
+        function resizeCanvas() {
+            const container = canvas.parentElement;
+            const maxWidth = Math.min(container.clientWidth, BASE_WIDTH);
+            canvas.width = maxWidth;
+            canvas.height = maxWidth;
+            scale = canvas.width / BASE_WIDTH;
+            playerY = PLAYER_GROUND_Y;
+        }
+
+        function playerJump() {
+            if (!playerJumping) {
+                playerJumping = true;
+                jumpVelocity = JUMP_POWER * scale;
+            }
+        }
+
+        function updatePlayer() {
+            if (playerJumping) {
+                jumpVelocity += GRAVITY * scale;
+                playerY += jumpVelocity;
+
+                if (playerY >= PLAYER_GROUND_Y) {
+                    playerY = PLAYER_GROUND_Y;
+                    playerJumping = false;
+                    jumpVelocity = 0;
+                }
+            }
+        }
+
+        function updateRope() {
+            ropeAngle += ropeDirection * ropeSpeed * scale;
+
+            absRopeAngle = Math.abs(ropeAngle);
+            bottom = ROPE_SWING_RANGE * scale;
+            if (absRopeAngle >= bottom - 20) {
+                if (absRopeAngle >= bottom) {
+                    ropeDirection *= -1;
+                }
+
+                if (ropeAngle > bottom - 20) {
+                    if (lastScore === score) {
+                        if (playerJumping) {
+                            score++;
+                            ropeSpeed += ROPE_SPEED_INCREASE;
+                            if (score >= WIN_SCORE) {
+                                window.location.href = '95KK7.html';
+                            }
+                        } else {
+                            score = 0;
+                            ropeSpeed = 2;
+                        }
+                    }
+                } else {
+                    lastScore = score;
+                }
+            }
+
+            lastRopeDirection = ropeDirection;
+        }
+
+        function drawEmoji(x, y, size, emoji) {
+            ctx.fillStyle = '#000';
+            ctx.font = `${s(size)}px Arial`;
+            ctx.fillText(emoji, s(x), s(y));
+        }
+
+        function drawRope() {
+            const centerX = canvas.width / 2;
+            const groundY = s(PLAYER_GROUND_Y);
+            const ropeRad = s(ROPE_RADIUS);
+
+            // Curve
+            ctx.strokeStyle = '#654321';
+            ctx.lineWidth = s(3);
+            ctx.beginPath();
+            ctx.moveTo(centerX - ropeRad, groundY);
+            ctx.quadraticCurveTo(centerX, ropeAngle + groundY, centerX + ropeRad, groundY);
+            ctx.stroke();
+
+            // Endpoints
+            drawEmoji((centerX / scale) - ROPE_RADIUS, GROUND_Y - 7, 40, "💠")
+            drawEmoji((centerX / scale) + ROPE_RADIUS, GROUND_Y - 7, 40, "💠");
+        }
+
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Ground
+            ctx.fillStyle = '#90EE90';
+            ctx.fillRect(0, s(GROUND_Y), canvas.width, canvas.height - s(GROUND_Y));
+
+            // Rope behind player if swinging backward
+            if (ropeDirection < 0) {
+                drawRope();
+            }
+
+            // Player
+            drawEmoji((canvas.width / 2) / scale, playerY + 40, 70, "🤠");
+
+            // Rope in front of player if swinging forward
+            if (ropeDirection > 0) {
+                drawRope();
+            }
+
+            // Score below player
+            if (score < WIN_SCORE) {
+                ctx.fillStyle = '#000';
+                ctx.font = `${s(24)}px Courier New`;
+                ctx.textAlign = 'center';
+                ctx.fillText(10 - score, canvas.width / 2, s(GROUND_Y + 75));
+            }
+
+            // Clouds
+            drawEmoji(50, 225, 80, "☁️");
+            drawEmoji(400, 100, 140, "☁️");
+            drawEmoji(250, 170, 90, "🌤️");
+            drawEmoji(150, 100, 110, "☁️");
+            drawEmoji(500, 200, 120, "☁️");
+
+            // Draw plants
+            drawEmoji(50, GROUND_Y + 70, 40, "🌵")
+            drawEmoji(500, GROUND_Y + 90, 50, "🌵");
+            drawEmoji(130, GROUND_Y + 120, 60, "🌵");
+        }
+
+        function gameLoop() {
+            updatePlayer();
+            updateRope();
+            draw();
+            requestAnimationFrame(gameLoop);
+        }
+
+        function handleJump() {
+            if (!playerJumping) {
+                playerJump();
+            }
+        }
+
+        document.addEventListener('keydown', (event) => {
+            if (event.code === 'Space') {
+                event.preventDefault();
+                handleJump();
+            }
+        });
+
+        document.addEventListener('click', handleJump);
+
+        gameLoop();
+    </script>
 </body>
 
 </html>
