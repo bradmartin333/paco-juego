@@ -388,9 +388,9 @@
 
         // Probabilities (0.0 to 1.0)
         const PROBABILITIES = {
-            biteChance: 0.4, // Chance of getting a bite during drift
+            biteChance: 1.0, // Chance of getting a bite during drift
             idleBiteChance: 0.1, // Chance of getting a bite when idle
-            pulledChance: 0.3 // Chance of being pulled when setting hook
+            pulledChance: 0.0 // Chance of being pulled when setting hook
         };
 
         // Minigame configuration
@@ -433,6 +433,7 @@
         let biteTimeout = null;
         let driftTimer = null;
         let animationFrame = null;
+        let currentFishSize = 0;
 
         // Minigame state
         let indicatorPosition = 0;
@@ -652,6 +653,7 @@
             if (Math.random() < PROBABILITIES.pulledChance) {
                 startPulled();
             } else {
+                currentFishSize = 8 + Math.random() * 16; // 8-24 inches
                 startMinigame();
             }
         }
@@ -679,7 +681,7 @@
             currentState = STATE.MINIGAME;
             successCount = 0;
             indicatorPosition = 0;
-            indicatorDirection = 1;
+            indicatorDirection = (currentFishSize - 8) / 16 + 0.5; // Speed based on fish size
 
             // Position green zone randomly and set initial width
             positionGreenZone();
@@ -709,10 +711,10 @@
 
             if (indicatorPosition >= MINIGAME.barWidth) {
                 indicatorPosition = MINIGAME.barWidth;
-                indicatorDirection = -0.5;
+                indicatorDirection *= -1;
             } else if (indicatorPosition <= 0) {
                 indicatorPosition = 0;
-                indicatorDirection = 0.5;
+                indicatorDirection *= -1;
             }
 
             indicator.style.left = indicatorPosition + 'px';
@@ -780,15 +782,14 @@
             const randomFish = ASSETS.fishImages[Math.floor(Math.random() * ASSETS.fishImages.length)];
 
             // 8-24 inches
-            const fishSizeInchesNumeric = 8 + Math.random() * 16;
-            const fishSizeInches = fishSizeInchesNumeric.toFixed(2);
-            fishImage.style.width = (fishSizeInchesNumeric * 45) + 'px';
+            const fishSizeInches = currentFishSize.toFixed(2);
+            fishImage.style.width = (currentFishSize * 45) + 'px';
             fishImage.style.height = 'auto';
 
             // Check record
             const currentRecord = parseFloat(localStorage.getItem('fishing_max_size') || '0');
-            if (fishSizeInchesNumeric > currentRecord) {
-                localStorage.setItem('fishing_max_size', fishSizeInchesNumeric);
+            if (currentFishSize > currentRecord) {
+                localStorage.setItem('fishing_max_size', currentFishSize);
                 fishRecordText.textContent = 'NEW RECORD!';
                 fishRecordText.style.display = 'block';
             } else {
@@ -796,7 +797,7 @@
             }
 
             const randomText = SETTINGS.fishCatchTexts[Math.floor(Math.random() * SETTINGS.fishCatchTexts.length)];
-            fishSizeText.textContent = `Fish Size: ${fishSizeInches} inches`;
+            fishSizeText.textContent = `${fishSizeInches} inches`;
             fishImage.src = randomFish;
             fishText.textContent = randomText;
             showElement(fishDisplay);
