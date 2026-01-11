@@ -306,6 +306,9 @@
         </div>
 
         <div id="fish-display" class="hidden">
+            <div id="fish-record-text"
+                style="color: gold; font-size: 32px; font-weight: bold; text-shadow: 2px 2px 4px #000; margin-bottom: 10px;">
+            </div>
             <div id="fish-size-text"></div>
             <img id="fish-image" src="" alt="Fish">
             <div id="fish-text"></div>
@@ -437,6 +440,7 @@
         const minigameOverlay = document.getElementById('minigame-overlay');
         const fishDisplay = document.getElementById('fish-display');
         const fishSizeText = document.getElementById('fish-size-text');
+        const fishRecordText = document.getElementById('fish-record-text');
         const fishImage = document.getElementById('fish-image');
         const fishText = document.getElementById('fish-text');
         const indicator = document.getElementById('indicator');
@@ -757,8 +761,18 @@
             // 8-24 inches
             const fishSizeInchesNumeric = 8 + Math.random() * 16;
             const fishSizeInches = fishSizeInchesNumeric.toFixed(2);
-            fishImage.style.width = (fishSizeInchesNumeric * 50) + 'px';
+            fishImage.style.width = (fishSizeInchesNumeric * 45) + 'px';
             fishImage.style.height = 'auto';
+
+            // Check record
+            const currentRecord = parseFloat(localStorage.getItem('fishing_max_size') || '0');
+            if (fishSizeInchesNumeric > currentRecord) {
+                localStorage.setItem('fishing_max_size', fishSizeInchesNumeric);
+                fishRecordText.textContent = 'NEW RECORD!';
+                fishRecordText.style.display = 'block';
+            } else {
+                fishRecordText.style.display = 'none';
+            }
 
             const randomText = SETTINGS.fishCatchTexts[Math.floor(Math.random() * SETTINGS.fishCatchTexts.length)];
             fishSizeText.textContent = `Fish Size: ${fishSizeInches} inches`;
