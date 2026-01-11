@@ -184,6 +184,25 @@
             background: #546E7A;
         }
 
+        button.source-btn {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            padding: 15px 30px;
+            font-size: 18px;
+            background: #607D8B;
+            border-color: #455A64;
+            z-index: 1000;
+            color: white;
+            text-decoration: none;
+            display: inline-block;
+            text-align: center;
+        }
+
+        button.source-btn:hover {
+            background: #546E7A;
+        }
+
         .hidden {
             display: none !important;
         }
@@ -266,6 +285,7 @@
         </div>
 
         <button id="back-btn" class="back-btn">BACK</button>
+        <button id="source-btn" class="source-btn">SOURCE</button>
 
         <button id="mend-btn" class="mend-btn hidden">MEND</button>
         <button id="reset-btn" class="reset-btn hidden">RESET</button>
@@ -332,7 +352,7 @@
 
         // Timing configuration (milliseconds)
         const TIMING = {
-            castingFrameDelays: [200, 200, 200, 200, 100], // Delay for each casting frame
+            castingFrameDelays: [100, 120, 80, 120, 100], // Delay for each casting frame
             driftBackgroundDuration: 5000, // Time before changing drift background
             driftBeforeRecycle: 8000, // Time before returning to cast
             biteTimeout: 3000, // Time user has to click SET
@@ -415,6 +435,7 @@
         const mendBtn = document.getElementById('mend-btn');
         const resetBtn = document.getElementById('reset-btn');
         const backBtn = document.getElementById('back-btn');
+        const sourceBtn = document.getElementById('source-btn');
 
         // ==================== SCALING LOGIC ====================
 
@@ -787,6 +808,11 @@
                 window.location.href = '../../index.html'; // Fallback to main index
             }
         });
+
+        sourceBtn.addEventListener('click', () => {
+            window.open('https://youtu.be/y9jRwFopiXA?si=_oALBPHBZAunSMOA&t=300', '_blank');
+        });
+
         castBtn.addEventListener('click', startCasting);
         setBtn.addEventListener('click', setHook);
         stripBtn.addEventListener('click', strip);
