@@ -30,7 +30,7 @@
             width: 1920px;
             height: 1080px;
             overflow: hidden;
-            box-shadow: 0 0 30px rgba(0,0,0,0.5);
+            box-shadow: 0 0 30px rgba(0, 0, 0, 0.5);
             transform-origin: center center;
         }
 
@@ -318,7 +318,7 @@
             driftBackgroundDuration: 5000, // Time before changing drift background
             driftBeforeRecycle: 8000, // Time before returning to cast
             biteTimeout: 3000, // Time user has to click SET
-            pulledRedirectDelay: 5000, // Time before redirect when pulled
+            pulledRedirectDelay: 2000, // Time before redirect when pulled
             minigameIndicatorSpeed: 15, // Pixels per frame
             mendDuration: 500 // Time mend effect lasts
         };
@@ -339,7 +339,10 @@
 
         // Other settings
         const SETTINGS = {
-            pulledRedirectUrl: '../index.html', // Where to redirect when pulled
+            pulledRedirectUrls: [
+                '../../pages/5RNQH.html',
+                '../../pages/BT3P1.html'
+            ],
             fishCatchTexts: [
                 'You caught a beautiful fish!',
                 'What a catch!',
@@ -394,7 +397,7 @@
         const resetBtn = document.getElementById('reset-btn');
 
         // ==================== SCALING LOGIC ====================
-        
+
         let baseWidth = 1920;
         let baseHeight = 1080;
         let sizeDetected = false;
@@ -403,11 +406,11 @@
             const container = document.getElementById('game-container');
             const windowWidth = document.documentElement.clientWidth || window.innerWidth;
             const windowHeight = document.documentElement.clientHeight || window.innerHeight;
-            
+
             const scaleX = windowWidth / baseWidth;
             const scaleY = windowHeight / baseHeight;
             const scale = Math.min(scaleX, scaleY);
-            
+
             container.style.width = baseWidth + 'px';
             container.style.height = baseHeight + 'px';
             container.style.transform = `translate(-50%, -50%) scale(${scale})`;
@@ -417,12 +420,12 @@
         window.addEventListener('orientationchange', () => setTimeout(resizeGame, 100));
 
         background.addEventListener('load', () => {
-             if(!sizeDetected && background.naturalWidth > 0) {
-                 baseWidth = background.naturalWidth;
-                 baseHeight = background.naturalHeight;
-                 sizeDetected = true;
-                 resizeGame();
-             }
+            if (!sizeDetected && background.naturalWidth > 0) {
+                baseWidth = background.naturalWidth;
+                baseHeight = background.naturalHeight;
+                sizeDetected = true;
+                resizeGame();
+            }
         });
 
         // ==================== GAME FUNCTIONS ====================
@@ -579,7 +582,9 @@
             foreground.classList.add('shake');
 
             setTimeout(() => {
-                window.location.href = SETTINGS.pulledRedirectUrl;
+                const randomIndex = Math.floor(Math.random() * SETTINGS.pulledRedirectUrls.length);
+                const pulledRedirectUrl = SETTINGS.pulledRedirectUrls[randomIndex];
+                window.location.href = pulledRedirectUrl;
             }, TIMING.pulledRedirectDelay);
         }
 
