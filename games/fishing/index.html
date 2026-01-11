@@ -265,6 +265,13 @@
             object-fit: contain;
         }
 
+        #fish-size-text {
+            font-size: 28px;
+            text-align: center;
+            max-width: 600px;
+            padding: 0 20px;
+        }
+
         #fish-text {
             font-size: 28px;
             text-align: center;
@@ -299,6 +306,7 @@
         </div>
 
         <div id="fish-display" class="hidden">
+            <div id="fish-size-text"></div>
             <img id="fish-image" src="" alt="Fish">
             <div id="fish-text"></div>
             <button id="caught-cast-btn">RELEASE</button>
@@ -428,6 +436,7 @@
         const caughtCastBtn = document.getElementById('caught-cast-btn');
         const minigameOverlay = document.getElementById('minigame-overlay');
         const fishDisplay = document.getElementById('fish-display');
+        const fishSizeText = document.getElementById('fish-size-text');
         const fishImage = document.getElementById('fish-image');
         const fishText = document.getElementById('fish-text');
         const indicator = document.getElementById('indicator');
@@ -727,6 +736,7 @@
             currentState = STATE.CAUGHT;
             hideElement(minigameOverlay);
 
+            fishSizeText.textContent = "";
             fishImage.style.display = 'none';
             fishText.textContent = "The fish got away...";
             document.getElementById('caught-cast-btn').textContent = "CAST AGAIN";
@@ -743,10 +753,15 @@
 
             // Select random fish and text
             const randomFish = ASSETS.fishImages[Math.floor(Math.random() * ASSETS.fishImages.length)];
-            const fishSize = Math.floor(window.innerWidth * (0.3 + Math.random() * 0.3));
-            fishImage.style.height = 'auto';
-            const randomText = SETTINGS.fishCatchTexts[Math.floor(Math.random() * SETTINGS.fishCatchTexts.length)];
 
+            // 8-24 inches
+            const fishSizeInchesNumeric = 8 + Math.random() * 16;
+            const fishSizeInches = fishSizeInchesNumeric.toFixed(2);
+            fishImage.style.width = (fishSizeInchesNumeric * 50) + 'px';
+            fishImage.style.height = 'auto';
+
+            const randomText = SETTINGS.fishCatchTexts[Math.floor(Math.random() * SETTINGS.fishCatchTexts.length)];
+            fishSizeText.textContent = `Fish Size: ${fishSizeInches} inches`;
             fishImage.src = randomFish;
             fishText.textContent = randomText;
             showElement(fishDisplay);
