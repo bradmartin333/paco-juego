@@ -292,10 +292,72 @@
             max-width: 600px;
             padding: 0 20px;
         }
+
+        #rotate-banner {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 60px;
+            background-color: #ff9800;
+            color: #000;
+            z-index: 10000;
+            flex-direction: row;
+            align-items: center;
+            justify-content: center;
+            gap: 15px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+        }
+
+        #rotate-banner.visible {
+            display: flex;
+        }
+
+        .rotate-icon-svg {
+            width: 30px;
+            height: 30px;
+            fill: #000;
+            animation: rotate-icon-anim 2s infinite;
+        }
+
+        @keyframes rotate-icon-anim {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            25% {
+                transform: rotate(-90deg);
+            }
+
+            50% {
+                transform: rotate(-90deg);
+            }
+
+            75% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(0deg);
+            }
+        }
+
+        #rotate-text {
+            font-size: 18px;
+            font-weight: bold;
+        }
     </style>
 </head>
 
 <body>
+    <div id="rotate-banner">
+        <svg class="rotate-icon-svg" viewBox="0 0 24 24">
+            <path
+                d="M16 1H8C6.34 1 5 2.34 5 4v16c0 1.66 1.34 3 3 3h8c1.66 0 3-1.34 3-3V4c0-1.66-1.34-3-3-3zm-2 20h-4v-1h4v1zm3.25-3H6.75V4h10.5v14z" />
+        </svg>
+    </div>
+
     <div id="game-container">
         <img id="background" src="">
         <img id="foreground" src="">
@@ -433,6 +495,7 @@
         let biteTimeout = null;
         let driftTimer = null;
         let animationFrame = null;
+        let currentFishSize = 0;
 
         // Minigame state
         let indicatorPosition = 0;
@@ -652,6 +715,7 @@
             if (Math.random() < PROBABILITIES.pulledChance) {
                 startPulled();
             } else {
+                currentFishSize = 8 + Math.random() * 16; // 8-24 inches
                 startMinigame();
             }
         }
@@ -679,7 +743,7 @@
             currentState = STATE.MINIGAME;
             successCount = 0;
             indicatorPosition = 0;
-            indicatorDirection = 1;
+            indicatorDirection = (currentFishSize - 8) / 16 + 0.5; // Speed based on fish size
 
             // Position green zone randomly and set initial width
             positionGreenZone();
@@ -709,10 +773,10 @@
 
             if (indicatorPosition >= MINIGAME.barWidth) {
                 indicatorPosition = MINIGAME.barWidth;
-                indicatorDirection = -0.5;
+                indicatorDirection *= -1;
             } else if (indicatorPosition <= 0) {
                 indicatorPosition = 0;
-                indicatorDirection = 0.5;
+                indicatorDirection *= -1;
             }
 
             indicator.style.left = indicatorPosition + 'px';
@@ -780,15 +844,14 @@
             const randomFish = ASSETS.fishImages[Math.floor(Math.random() * ASSETS.fishImages.length)];
 
             // 8-24 inches
-            const fishSizeInchesNumeric = 8 + Math.random() * 16;
-            const fishSizeInches = fishSizeInchesNumeric.toFixed(2);
-            fishImage.style.width = (fishSizeInchesNumeric * 45) + 'px';
+            const fishSizeInches = currentFishSize.toFixed(2);
+            fishImage.style.width = (currentFishSize * 45) + 'px';
             fishImage.style.height = 'auto';
 
             // Check record
             const currentRecord = parseFloat(localStorage.getItem('fishing_max_size') || '0');
-            if (fishSizeInchesNumeric > currentRecord) {
-                localStorage.setItem('fishing_max_size', fishSizeInchesNumeric);
+            if (currentFishSize > currentRecord) {
+                localStorage.setItem('fishing_max_size', currentFishSize);
                 fishRecordText.textContent = 'NEW RECORD!';
                 fishRecordText.style.display = 'block';
             } else {
@@ -796,7 +859,7 @@
             }
 
             const randomText = SETTINGS.fishCatchTexts[Math.floor(Math.random() * SETTINGS.fishCatchTexts.length)];
-            fishSizeText.textContent = `Fish Size: ${fishSizeInches} inches`;
+            fishSizeText.textContent = `${fishSizeInches} inches`;
             fishImage.src = randomFish;
             fishText.textContent = randomText;
             showElement(fishDisplay);
@@ -887,6 +950,23 @@
         caughtCastBtn.addEventListener('click', resetToCast);
         mendBtn.addEventListener('click', mend);
         resetBtn.addEventListener('click', resetToCast);
+
+        // ==================== ROTATE BANNER ====================
+        function checkOrientation() {
+            const banner = document.getElementById('rotate-banner');
+            const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth < 1024;
+            const isPortrait = window.innerHeight > window.innerWidth;
+
+            if (isMobile && isPortrait) {
+                if (banner) banner.classList.add('visible');
+            } else {
+                if (banner) banner.classList.remove('visible');
+            }
+        }
+
+        window.addEventListener('resize', checkOrientation);
+        window.addEventListener('orientationchange', checkOrientation);
+        checkOrientation();
 
         // ==================== INITIALIZE ====================
 
