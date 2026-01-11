@@ -17,12 +17,18 @@
             height: 100vh;
             overflow: hidden;
             font-family: Arial, sans-serif;
+            background-color: #000;
         }
 
         #game-container {
-            position: relative;
-            width: 100%;
-            height: 100%;
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            width: 1920px;
+            height: 1080px;
+            overflow: hidden;
+            box-shadow: 0 0 30px rgba(0,0,0,0.5);
+            transform-origin: center center;
         }
 
         #background {
@@ -385,9 +391,43 @@
         const mendBtn = document.getElementById('mend-btn');
         const resetBtn = document.getElementById('reset-btn');
 
+        // ==================== SCALING LOGIC ====================
+        
+        let baseWidth = 1920;
+        let baseHeight = 1080;
+        let sizeDetected = false;
+
+        function resizeGame() {
+            const container = document.getElementById('game-container');
+            const windowWidth = window.innerWidth;
+            const windowHeight = window.innerHeight;
+            
+            const scaleX = windowWidth / baseWidth;
+            const scaleY = windowHeight / baseHeight;
+            const scale = Math.min(scaleX, scaleY);
+            
+            container.style.width = baseWidth + 'px';
+            container.style.height = baseHeight + 'px';
+            container.style.transform = `translate(-50%, -50%) scale(${scale})`;
+        }
+
+        window.addEventListener('resize', resizeGame);
+
+        background.addEventListener('load', () => {
+             if(!sizeDetected && background.naturalWidth > 0) {
+                 baseWidth = background.naturalWidth;
+                 baseHeight = background.naturalHeight;
+                 sizeDetected = true;
+                 resizeGame();
+             }
+        });
+
         // ==================== GAME FUNCTIONS ====================
 
         function init() {
+            // Initial resize to ensure game fits screen immediately
+            resizeGame();
+
             background.src = ASSETS.castBackground;
             foreground.src = '';
             currentState = STATE.IDLE;
