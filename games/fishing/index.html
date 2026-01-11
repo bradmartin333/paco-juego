@@ -292,10 +292,72 @@
             max-width: 600px;
             padding: 0 20px;
         }
+
+        #rotate-banner {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 60px;
+            background-color: #ff9800;
+            color: #000;
+            z-index: 10000;
+            flex-direction: row;
+            align-items: center;
+            justify-content: center;
+            gap: 15px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+        }
+
+        #rotate-banner.visible {
+            display: flex;
+        }
+
+        .rotate-icon-svg {
+            width: 30px;
+            height: 30px;
+            fill: #000;
+            animation: rotate-icon-anim 2s infinite;
+        }
+
+        @keyframes rotate-icon-anim {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            25% {
+                transform: rotate(-90deg);
+            }
+
+            50% {
+                transform: rotate(-90deg);
+            }
+
+            75% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(0deg);
+            }
+        }
+
+        #rotate-text {
+            font-size: 18px;
+            font-weight: bold;
+        }
     </style>
 </head>
 
 <body>
+    <div id="rotate-banner">
+        <svg class="rotate-icon-svg" viewBox="0 0 24 24">
+            <path
+                d="M16 1H8C6.34 1 5 2.34 5 4v16c0 1.66 1.34 3 3 3h8c1.66 0 3-1.34 3-3V4c0-1.66-1.34-3-3-3zm-2 20h-4v-1h4v1zm3.25-3H6.75V4h10.5v14z" />
+        </svg>
+    </div>
+
     <div id="game-container">
         <img id="background" src="">
         <img id="foreground" src="">
@@ -888,6 +950,23 @@
         caughtCastBtn.addEventListener('click', resetToCast);
         mendBtn.addEventListener('click', mend);
         resetBtn.addEventListener('click', resetToCast);
+
+        // ==================== ROTATE BANNER ====================
+        function checkOrientation() {
+            const banner = document.getElementById('rotate-banner');
+            const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth < 1024;
+            const isPortrait = window.innerHeight > window.innerWidth;
+
+            if (isMobile && isPortrait) {
+                if (banner) banner.classList.add('visible');
+            } else {
+                if (banner) banner.classList.remove('visible');
+            }
+        }
+
+        window.addEventListener('resize', checkOrientation);
+        window.addEventListener('orientationchange', checkOrientation);
+        checkOrientation();
 
         // ==================== INITIALIZE ====================
 
