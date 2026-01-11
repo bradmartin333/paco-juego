@@ -89,6 +89,20 @@
             }
         }
 
+        #foreground.bob {
+            animation: bob 2s ease-in-out infinite alternate;
+        }
+
+        @keyframes bob {
+            0% {
+                transform: translateY(0);
+            }
+
+            100% {
+                transform: translateY(5px);
+            }
+        }
+
         #ui-layer {
             position: absolute;
             width: 100%;
@@ -376,7 +390,7 @@
         const PROBABILITIES = {
             biteChance: 0.4, // Chance of getting a bite during drift
             idleBiteChance: 0.1, // Chance of getting a bite when idle
-            pulledChance: 0.5 // Chance of being pulled when setting hook
+            pulledChance: 0.3 // Chance of being pulled when setting hook
         };
 
         // Minigame configuration
@@ -531,6 +545,7 @@
             // After rotation completes, switch to drift background and start drift
             setTimeout(() => {
                 foreground.classList.remove('rotate-in');
+                foreground.classList.add('bob'); // Start bobbing
                 driftBackgroundIndex = 0;
                 background.src = ASSETS.driftBackgrounds[0];
 
@@ -592,6 +607,7 @@
             // Clear any ongoing animations and reset to base drift image
             clearTimeout(mendTimeout);
             foreground.classList.remove('rotate-in');
+            foreground.classList.remove('bob'); // Stop bobbing
             foreground.src = ASSETS.driftForeground;
             currentDriftForeground = ASSETS.driftForeground;
 
@@ -609,6 +625,7 @@
         function missedBite() {
             currentState = STATE.DRIFT;
             foreground.classList.remove('shake');
+            foreground.src = '';
             hideElement(setBtn);
 
             // Continue with drift foreground
@@ -624,6 +641,7 @@
             clearTimeout(driftTimer);
             clearTimeout(mendTimeout);
             foreground.classList.remove('shake');
+            foreground.classList.remove('bob'); // Stop bobbing
             hideElement(setBtn);
             hideElement(mendBtn);
 
@@ -640,6 +658,7 @@
 
         function startPulled() {
             backBtn.style.display = 'none';
+            sourceBtn.style.display = 'none';
             currentState = STATE.PULLED;
             background.style.display = 'none';
             foreground.src = ASSETS.pulledImage;
@@ -740,9 +759,11 @@
             currentState = STATE.CAUGHT;
             hideElement(minigameOverlay);
 
+            foreground.style.display = 'none';
             fishSizeText.textContent = "";
             fishImage.style.display = 'none';
             fishText.textContent = "The fish got away...";
+            fishRecordText.style.display = 'none';
             document.getElementById('caught-cast-btn').textContent = "CAST AGAIN";
             showElement(fishDisplay);
         }
@@ -788,6 +809,7 @@
             cancelAnimationFrame(animationFrame);
 
             foreground.classList.remove('shake');
+            foreground.classList.remove('bob');
             background.src = ASSETS.castBackground;
             foreground.src = '';
 
@@ -805,6 +827,7 @@
 
             clearTimeout(mendTimeout);
             hideElement(mendBtn);
+            foreground.classList.remove('bob'); // Stop bobbing during mend
 
             // Show mend foreground
             foreground.src = ASSETS.mendForeground;
@@ -813,6 +836,7 @@
             mendTimeout = setTimeout(() => {
                 if (currentState === STATE.DRIFT) {
                     foreground.src = currentDriftForeground;
+                    foreground.classList.add('bob'); // Resume bobbing
                     showElement(mendBtn);
                 }
             }, TIMING.mendDuration);
