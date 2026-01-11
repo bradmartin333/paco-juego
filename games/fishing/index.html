@@ -168,6 +168,22 @@
             background: #1976D2;
         }
 
+        button.back-btn {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            padding: 15px 30px;
+            font-size: 18px;
+            background: #607D8B;
+            border-color: #455A64;
+            z-index: 1000;
+            color: white;
+        }
+
+        button.back-btn:hover {
+            background: #546E7A;
+        }
+
         .hidden {
             display: none !important;
         }
@@ -249,6 +265,8 @@
             <button id="set-btn" class="set-btn hidden">SET</button>
         </div>
 
+        <button id="back-btn" class="back-btn">BACK</button>
+
         <button id="mend-btn" class="mend-btn hidden">MEND</button>
         <button id="reset-btn" class="reset-btn hidden">RESET</button>
 
@@ -325,8 +343,9 @@
 
         // Probabilities (0.0 to 1.0)
         const PROBABILITIES = {
-            biteChance: 0.3, // Chance of getting a bite during drift
-            pulledChance: 0.8 // Chance of being pulled when setting hook
+            biteChance: 0.4, // Chance of getting a bite during drift
+            idleBiteChance: 0.1, // Chance of getting a bite when idle
+            pulledChance: 0.3 // Chance of being pulled when setting hook
         };
 
         // Minigame configuration
@@ -340,7 +359,7 @@
         // Other settings
         const SETTINGS = {
             pulledRedirectUrls: [
-                '../../pages/5RNQH.html',
+                '../../pages/BT3P1.html',
                 '../../pages/YBYFA.html'
             ],
             fishCatchTexts: [
@@ -395,6 +414,7 @@
         const greenZone = document.getElementById('green-zone');
         const mendBtn = document.getElementById('mend-btn');
         const resetBtn = document.getElementById('reset-btn');
+        const backBtn = document.getElementById('back-btn');
 
         // ==================== SCALING LOGIC ====================
 
@@ -500,24 +520,23 @@
             // Schedule return to cast - show RESET button
             driftTimer = setTimeout(() => {
                 if (currentState === STATE.DRIFT) {
-                    // 1/5 chance of bite at end of drift
-                    if (Math.random() < 0.2) {
-                        triggerBite();
-                    } else {
-                        showElement(resetBtn);
-                    }
+                    showElement(resetBtn);
+                    scheduleBite(PROBABILITIES.idleBiteChance);
                 }
             }, TIMING.driftBeforeRecycle);
 
             // Random chance for bite
-            scheduleBite();
+            scheduleBite(PROBABILITIES.biteChance);
         }
 
-        function scheduleBite() {
+        function scheduleBite(chance) {
             const biteDelay = Math.random() * TIMING.driftBeforeRecycle;
             setTimeout(() => {
-                if ((currentState === STATE.DRIFT) && Math.random() < PROBABILITIES.biteChance) {
+                if ((currentState === STATE.DRIFT) && Math.random() < chance) {
+                    console.log('Bite triggered');
                     triggerBite();
+                } else {
+                    console.log('No bite this time');
                 }
             }, biteDelay);
         }
@@ -575,6 +594,7 @@
         }
 
         function startPulled() {
+            backBtn.style.display = 'none';
             currentState = STATE.PULLED;
             background.style.display = 'none';
             foreground.src = ASSETS.pulledImage;
@@ -582,8 +602,11 @@
             foreground.classList.add('shake');
 
             setTimeout(() => {
-                const randomIndex = Math.floor(Math.random() * SETTINGS.pulledRedirectUrls.length);
-                const pulledRedirectUrl = SETTINGS.pulledRedirectUrls[randomIndex];
+                const previousPage = document.referrer || '';
+                const candidates = SETTINGS.pulledRedirectUrls.filter(u => !previousPage.endsWith(u));
+                const pulledRedirectUrl = candidates.length
+                    ? candidates[Math.floor(Math.random() * candidates.length)]
+                    : SETTINGS.pulledRedirectUrls[Math.floor(Math.random() * SETTINGS.pulledRedirectUrls.length)];
                 window.location.href = pulledRedirectUrl;
             }, TIMING.pulledRedirectDelay);
         }
@@ -675,8 +698,7 @@
 
             // Select random fish and text
             const randomFish = ASSETS.fishImages[Math.floor(Math.random() * ASSETS.fishImages.length)];
-            const fishSize = Math.floor(window.innerWidth * (0.3 + Math.random() * 0.6));
-            fishImage.style.width = fishSize + 'px';
+            const fishSize = Math.floor(window.innerWidth * (0.3 + Math.random() * 0.3));
             fishImage.style.height = 'auto';
             const randomText = SETTINGS.fishCatchTexts[Math.floor(Math.random() * SETTINGS.fishCatchTexts.length)];
 
@@ -734,6 +756,13 @@
 
         // ==================== EVENT LISTENERS ====================
 
+        backBtn.addEventListener('click', () => {
+            if (document.referrer) {
+                window.history.back();
+            } else {
+                window.location.href = '../../index.html'; // Fallback to main index
+            }
+        });
         castBtn.addEventListener('click', startCasting);
         setBtn.addEventListener('click', setHook);
         stripBtn.addEventListener('click', strip);
