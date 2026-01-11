@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -35,7 +36,9 @@
             position: absolute;
             width: 100%;
             height: 100%;
+            bottom: 0;
             object-fit: contain;
+            object-position: center bottom;
             pointer-events: none;
         }
 
@@ -44,10 +47,23 @@
         }
 
         @keyframes shake {
-            0%, 100% { transform: translate(0, 0) rotate(0deg) scale(1.1); }
-            25% { transform: translate(-5px, 5px) rotate(-2deg) scale(1.1); }
-            50% { transform: translate(5px, -5px) rotate(2deg) scale(1.1); }
-            75% { transform: translate(-5px, -5px) rotate(-1deg) scale(1.1); }
+
+            0%,
+            100% {
+                transform: translate(0, 0) rotate(0deg) scale(1.1);
+            }
+
+            25% {
+                transform: translate(-5px, 5px) rotate(-2deg) scale(1.1);
+            }
+
+            50% {
+                transform: translate(5px, -5px) rotate(2deg) scale(1.1);
+            }
+
+            75% {
+                transform: translate(-5px, -5px) rotate(-1deg) scale(1.1);
+            }
         }
 
         #foreground.rotate-in {
@@ -55,8 +71,13 @@
         }
 
         @keyframes rotateIn {
-            0% { transform: perspective(800px) rotateY(-30deg) scale(1.1); }
-            100% { transform: perspective(800px) rotateY(0deg) scale(1.0); }
+            0% {
+                transform: perspective(800px) rotateY(-30deg) scale(1.1);
+            }
+
+            100% {
+                transform: perspective(800px) rotateY(0deg) scale(1.0);
+            }
         }
 
         #ui-layer {
@@ -80,19 +101,19 @@
             border-radius: 10px;
             cursor: pointer;
             pointer-events: auto;
-            box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
             transition: all 0.2s;
         }
 
         button:hover {
             background: #45a049;
             transform: translateY(-2px);
-            box-shadow: 0 6px 12px rgba(0,0,0,0.4);
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.4);
         }
 
         button:active {
             transform: translateY(0);
-            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
         }
 
         button.set-btn {
@@ -197,8 +218,6 @@
         }
 
         #fish-image {
-            max-width: 400px;
-            max-height: 400px;
             object-fit: contain;
         }
 
@@ -210,11 +229,12 @@
         }
     </style>
 </head>
+
 <body>
     <div id="game-container">
         <img id="background" src="">
         <img id="foreground" src="">
-        
+
         <div id="ui-layer">
             <button id="cast-btn">CAST</button>
             <button id="set-btn" class="set-btn hidden">SET</button>
@@ -240,12 +260,12 @@
 
     <script>
         // ==================== CONFIGURATION ====================
-        
+
         // Image paths
         const ASSETS = {
             // Static background for casting state
             castBackground: 'assets/cast_bg.png',
-            
+
             // Casting animation sequence
             castingSequence: [
                 'assets/cast_1.png',
@@ -253,33 +273,32 @@
                 'assets/cast_3.png',
                 'assets/cast_4.png'
             ],
-            
+
             // Drift state backgrounds (will cycle through these)
             driftBackgrounds: [
                 'assets/drift_bg_a.png',
                 'assets/drift_bg_b.png'
             ],
-            
+
             // Drift state foreground image
             driftForeground: 'assets/drift.png',
-            
+
             // Mend foreground image
             mendForeground: 'assets/mend.png',
-            
+
             // Set hook foreground image
             setForeground: 'assets/set.png',
-            
+
             // Strip action foreground image
             stripForeground: 'assets/strip.png',
-            
+
             // Fish images (randomly selected on catch)
             fishImages: [
-                'assets/fish-01.png',
-                'assets/fish-02.png',
-                'assets/fish-03.png',
-                'assets/fish-04.png'
+                'assets/brown.png',
+                'assets/brook.png',
+                'assets/rainbow.png'
             ],
-            
+
             // Special "pulled into water" background
             pulledBackground: 'assets/pulled-bg.png',
             pulledForeground: 'assets/pulled-fg.png'
@@ -298,8 +317,8 @@
 
         // Probabilities (0.0 to 1.0)
         const PROBABILITIES = {
-            biteChance: 0.3, // Chance of getting a bite during drift
-            pulledChance: 0.1 // Chance of being pulled when setting hook
+            biteChance: 0.9, // Chance of getting a bite during drift
+            pulledChance: 0.0 // Chance of being pulled when setting hook
         };
 
         // Minigame configuration
@@ -322,7 +341,7 @@
         };
 
         // ==================== GAME STATE ====================
-        
+
         const STATE = {
             IDLE: 'idle',
             CASTING: 'casting',
@@ -339,7 +358,7 @@
         let biteTimeout = null;
         let driftTimer = null;
         let animationFrame = null;
-        
+
         // Minigame state
         let indicatorPosition = 0;
         let indicatorDirection = 0.5;
@@ -350,7 +369,7 @@
         let mendTimeout = null;
 
         // ==================== DOM ELEMENTS ====================
-        
+
         const background = document.getElementById('background');
         const foreground = document.getElementById('foreground');
         const castBtn = document.getElementById('cast-btn');
@@ -367,7 +386,7 @@
         const resetBtn = document.getElementById('reset-btn');
 
         // ==================== GAME FUNCTIONS ====================
-        
+
         function init() {
             background.src = ASSETS.castBackground;
             foreground.src = '';
@@ -402,26 +421,26 @@
 
         function startDrift() {
             currentState = STATE.DRIFT;
-            
+
             // Set drift foreground with rotation animation (keep cast bg during rotation)
             currentDriftForeground = ASSETS.driftForeground;
             foreground.src = currentDriftForeground;
             foreground.classList.add('rotate-in');
-            
+
             // After rotation completes, switch to drift background and start drift
             setTimeout(() => {
                 foreground.classList.remove('rotate-in');
                 driftBackgroundIndex = 0;
                 background.src = ASSETS.driftBackgrounds[0];
-                
+
                 // Show MEND button
                 showElement(mendBtn);
-                
+
                 // Start drift timers
                 startDriftTimers();
             }, 1000);
         }
-        
+
         function startDriftTimers() {
             // Schedule background change
             setTimeout(() => {
@@ -458,13 +477,13 @@
 
         function triggerBite() {
             currentState = STATE.BITE;
-            
+
             // Clear any ongoing animations and reset to base drift image
             clearTimeout(mendTimeout);
             foreground.classList.remove('rotate-in');
             foreground.src = ASSETS.driftForeground;
             currentDriftForeground = ASSETS.driftForeground;
-            
+
             foreground.classList.add('shake');
             showElement(setBtn);
             hideElement(mendBtn);
@@ -480,7 +499,7 @@
             currentState = STATE.DRIFT;
             foreground.classList.remove('shake');
             hideElement(setBtn);
-            
+
             // Continue with drift foreground
             currentDriftForeground = ASSETS.driftForeground;
             foreground.src = currentDriftForeground;
@@ -496,7 +515,7 @@
             foreground.classList.remove('shake');
             hideElement(setBtn);
             hideElement(mendBtn);
-            
+
             // Show set hook image
             foreground.src = ASSETS.setForeground;
 
@@ -523,10 +542,10 @@
             successCount = 0;
             indicatorPosition = 0;
             indicatorDirection = 1;
-            
+
             // Position green zone randomly and set initial width
             positionGreenZone();
-            
+
             showElement(minigameOverlay);
             animateIndicator();
         }
@@ -536,10 +555,10 @@
             const baseWidth = MINIGAME.initialGreenZoneSize * MINIGAME.barWidth;
             greenZoneWidth = baseWidth - (successCount * MINIGAME.greenZoneShrink * MINIGAME.barWidth);
             if (greenZoneWidth < 40) greenZoneWidth = 40; // Minimum 40px
-            
+
             // Random position, ensuring it fits within the bar
             greenZonePosition = Math.random() * (MINIGAME.barWidth * 0.8 - greenZoneWidth);
-            
+
             // Update visuals
             greenZone.style.left = greenZonePosition + 'px';
             greenZone.style.width = greenZoneWidth + 'px';
@@ -564,7 +583,7 @@
 
         function strip() {
             if (currentState !== STATE.MINIGAME) return;
-            
+
             // Show strip action image temporarily
             const previousImage = foreground.src;
             foreground.src = ASSETS.stripForeground;
@@ -584,7 +603,7 @@
             if (hit) {
                 // Success!
                 successCount++;
-                
+
                 if (successCount >= MINIGAME.successesNeeded) {
                     catchFish();
                 } else {
@@ -602,11 +621,14 @@
             cancelAnimationFrame(animationFrame);
             currentState = STATE.CAUGHT;
             hideElement(minigameOverlay);
-            
+
             // Select random fish and text
             const randomFish = ASSETS.fishImages[Math.floor(Math.random() * ASSETS.fishImages.length)];
+            const fishSize = Math.floor(window.innerWidth * (0.3 + Math.random() * 0.6));
+            fishImage.style.width = fishSize + 'px';
+            fishImage.style.height = 'auto';
             const randomText = SETTINGS.fishCatchTexts[Math.floor(Math.random() * SETTINGS.fishCatchTexts.length)];
-            
+
             fishImage.src = randomFish;
             fishText.textContent = randomText;
             showElement(fishDisplay);
@@ -617,11 +639,11 @@
             clearTimeout(driftTimer);
             clearTimeout(mendTimeout);
             cancelAnimationFrame(animationFrame);
-            
+
             foreground.classList.remove('shake');
             background.src = ASSETS.castBackground;
             foreground.src = '';
-            
+
             currentState = STATE.IDLE;
             hideElement(setBtn);
             hideElement(minigameOverlay);
@@ -633,13 +655,13 @@
 
         function mend() {
             if (currentState !== STATE.DRIFT) return;
-            
+
             clearTimeout(mendTimeout);
             hideElement(mendBtn);
-            
+
             // Show mend foreground
             foreground.src = ASSETS.mendForeground;
-            
+
             // After duration, restore original foreground and show button again
             mendTimeout = setTimeout(() => {
                 if (currentState === STATE.DRIFT) {
@@ -650,7 +672,7 @@
         }
 
         // ==================== UTILITY FUNCTIONS ====================
-        
+
         function showElement(element) {
             element.classList.remove('hidden');
         }
@@ -660,7 +682,7 @@
         }
 
         // ==================== EVENT LISTENERS ====================
-        
+
         castBtn.addEventListener('click', startCasting);
         setBtn.addEventListener('click', setHook);
         stripBtn.addEventListener('click', strip);
@@ -669,8 +691,9 @@
         resetBtn.addEventListener('click', resetToCast);
 
         // ==================== INITIALIZE ====================
-        
+
         init();
     </script>
 </body>
+
 </html>
