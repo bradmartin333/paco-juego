@@ -305,9 +305,8 @@
                 'assets/rainbow.png'
             ],
 
-            // Special "pulled into water" background
-            pulledBackground: 'assets/pulled-bg.png',
-            pulledForeground: 'assets/pulled-fg.png'
+            // Special "pulled into water" image
+            pulledImage: 'assets/pulled.png',
         };
 
         // Timing configuration (milliseconds)
@@ -323,8 +322,8 @@
 
         // Probabilities (0.0 to 1.0)
         const PROBABILITIES = {
-            biteChance: 0.9, // Chance of getting a bite during drift
-            pulledChance: 0.0 // Chance of being pulled when setting hook
+            biteChance: 1.0, // Chance of getting a bite during drift
+            pulledChance: 1.0 // Chance of being pulled when setting hook
         };
 
         // Minigame configuration
@@ -429,7 +428,7 @@
             resizeGame();
 
             background.src = ASSETS.castBackground;
-            foreground.src = '';
+            foreground.style.display = 'none';
             currentState = STATE.IDLE;
             showElement(castBtn);
             hideElement(setBtn);
@@ -452,6 +451,7 @@
                 return;
             }
 
+            foreground.style.display = 'block';
             foreground.src = ASSETS.castingSequence[castingFrameIndex];
             const delay = TIMING.castingFrameDelays[castingFrameIndex];
             castingFrameIndex++;
@@ -569,8 +569,10 @@
 
         function startPulled() {
             currentState = STATE.PULLED;
-            background.src = ASSETS.pulledBackground;
-            foreground.src = ASSETS.pulledForeground;
+            background.style.display = 'none';
+            foreground.src = ASSETS.pulledImage;
+            void foreground.offsetWidth;
+            foreground.classList.add('shake');
 
             setTimeout(() => {
                 window.location.href = SETTINGS.pulledRedirectUrl;
