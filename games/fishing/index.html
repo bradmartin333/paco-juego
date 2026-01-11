@@ -521,7 +521,21 @@
             driftTimer = setTimeout(() => {
                 if (currentState === STATE.DRIFT) {
                     showElement(resetBtn);
-                    scheduleBite(PROBABILITIES.idleBiteChance);
+
+                    // Recursive idle bite loop
+                    const runIdleLoop = () => {
+                        if (currentState !== STATE.DRIFT) return;
+
+                        // Check for bite
+                        if (Math.random() < PROBABILITIES.idleBiteChance) {
+                            triggerBite();
+                        } else {
+                            // Schedule next check
+                            driftTimer = setTimeout(runIdleLoop, 2000);
+                        }
+                    };
+
+                    runIdleLoop();
                 }
             }, TIMING.driftBeforeRecycle);
 
@@ -533,10 +547,7 @@
             const biteDelay = Math.random() * TIMING.driftBeforeRecycle;
             setTimeout(() => {
                 if ((currentState === STATE.DRIFT) && Math.random() < chance) {
-                    console.log('Bite triggered');
                     triggerBite();
-                } else {
-                    console.log('No bite this time');
                 }
             }, biteDelay);
         }
