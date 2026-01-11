@@ -499,7 +499,7 @@
         // ==================== GAME FUNCTIONS ====================
 
         function init() {
-            // Initial resize to ensure game fits screen immediately
+            preloadImages();
             resizeGame();
 
             background.src = ASSETS.castBackground;
@@ -851,6 +851,21 @@
         function hideElement(element) {
             element.classList.add('hidden');
         }
+
+        function preloadImages() {
+            Object.values(ASSETS).forEach(val => {
+                if (Array.isArray(val)) {
+                    val.forEach(src => {
+                        const img = new Image();
+                        img.src = src;
+                    });
+                } else {
+                    const img = new Image();
+                    img.src = val;
+                }
+            });
+        }
+
 
         // ==================== EVENT LISTENERS ====================
 
