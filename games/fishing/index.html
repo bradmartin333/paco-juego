@@ -351,7 +351,7 @@
         // Minigame configuration
         const MINIGAME = {
             initialGreenZoneSize: 0.4, // Initial size of green zone (0-1)
-            greenZoneShrink: 0.05, // Amount to shrink per success
+            greenZoneShrink: 0.03, // Amount to shrink per success
             successesNeeded: 5,
             barWidth: 600 // Must match CSS
         };
@@ -696,16 +696,29 @@
                     positionGreenZone();
                 }
             } else {
-                // Failed - reset to beginning
-                successCount = 0;
-                positionGreenZone();
+                // Failed - fish got away
+                loseFish();
             }
+        }
+
+        function loseFish() {
+            cancelAnimationFrame(animationFrame);
+            currentState = STATE.CAUGHT;
+            hideElement(minigameOverlay);
+
+            fishImage.style.display = 'none';
+            fishText.textContent = "The fish got away...";
+            document.getElementById('caught-cast-btn').textContent = "CAST AGAIN";
+            showElement(fishDisplay);
         }
 
         function catchFish() {
             cancelAnimationFrame(animationFrame);
             currentState = STATE.CAUGHT;
             hideElement(minigameOverlay);
+
+            fishImage.style.display = 'block';
+            document.getElementById('caught-cast-btn').textContent = "RELEASE";
 
             // Select random fish and text
             const randomFish = ASSETS.fishImages[Math.floor(Math.random() * ASSETS.fishImages.length)];
