@@ -87,3 +87,15 @@ a:active {
     background-color: #04AA6D;
     color: white;
 }
+
+.choice {
+    display: block;
+    padding: 5px;
+    margin: 10px;
+    text-decoration: none;
+    border: 2px solid whitesmoke;
+    border-radius: 10px;
+    background-color: rgba(0, 0, 0, 0.5);
+    color: whitesmoke;
+    font-size: 18px;
+}
