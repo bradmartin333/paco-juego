@@ -12,8 +12,13 @@
 </head>
 
 <body onload="loadCode()">
-    <div class="imgbox">
-        <img class="center-fit" src='https://upload.wikimedia.org/wikipedia/commons/thumb/1/1e/SITIO-EN-CONSTRUCCION.jpg/799px-SITIO-EN-CONSTRUCCION.jpg'>
+    <div class="main">
+        ¡Te da alas!
+    </div>
+
+    <div id="gameContainer">
+        <canvas id="gameCanvas"
+            style="display: block; background: #87CEEB; width: 100%; max-width: 600px; margin: 0 auto;"></canvas>
     </div>
 
     <div class="navbar">
@@ -21,6 +26,234 @@
         <a href="../special-code/index.html">Código Especial</a>
         <a href="javascript:copyCode()" id="specialCode"></a>
     </div>
+
+    <script>
+        const BASE_WIDTH = 600;
+        const BASE_HEIGHT = 600;
+        const GRAVITY = 0.4;
+        const LIFT = -7;
+        const OBSTACLE_WIDTH = 60;
+        const OBSTACLE_GAP = 220;
+        const WIN_SCORE = 15;
+        const STARTING_OBSTACLE_SPEED = 4;
+        const OBSTACLE_SPEED_INCREMENT = 0.5;
+
+        let canvas;
+        let ctx;
+        let scale;
+        let frames = 0;
+        let obstacleSpeed = STARTING_OBSTACLE_SPEED;
+        
+        // Player state
+        let playerX = 100;
+        let playerY;
+        let velocity = 0;
+        let playerSize = 50;
+
+        // Game state
+        let obstacles = [];
+        let score = 0;
+        let isGameOver = false;
+        let gameStarted = false;
+
+        function s(value) {
+            return value * scale;
+        }
+
+        canvas = document.getElementById('gameCanvas');
+        ctx = canvas.getContext('2d');
+        resizeCanvas();
+        window.addEventListener('resize', resizeCanvas);
+
+        function resizeCanvas() {
+            const container = canvas.parentElement;
+            const maxWidth = Math.min(container.clientWidth, BASE_WIDTH);
+            canvas.width = maxWidth;
+            canvas.height = maxWidth;
+            scale = canvas.width / BASE_WIDTH;
+            if (!gameStarted && !isGameOver) {
+                resetGame();
+            }
+        }
+
+        function resetGame() {
+            playerY = BASE_HEIGHT / 2;
+            velocity = 0;
+            score = 0;
+            frames = 0;
+            obstacles = [];
+            isGameOver = false;
+            gameStarted = false;
+            obstacleSpeed = STARTING_OBSTACLE_SPEED;
+        }
+
+        function flap() {
+            if (isGameOver) {
+                resetGame();
+                gameStarted = true;
+                velocity = LIFT;
+                return;
+            }
+            if (!gameStarted) {
+                gameStarted = true;
+            }
+            velocity = LIFT;
+        }
+
+        function updatePlayer() {
+            if (!gameStarted) {
+                playerY = BASE_HEIGHT / 2 + Math.sin(frames * 0.1) * 20;
+                return;
+            }
+
+            velocity += GRAVITY;
+            playerY += velocity;
+
+            if (playerY < 0) {
+                playerY = 0;
+                velocity = 0;
+            }
+
+            if (playerY + playerSize > BASE_HEIGHT) {
+                gameGameOver();
+            }
+        }
+
+        function updateObstacles() {
+            if (!gameStarted) return;
+            
+            if (frames % (obstacleSpeed * 15 ) === 0) {
+                let minHeight = 50;
+                let maxHeight = BASE_HEIGHT - OBSTACLE_GAP - minHeight;
+                let topHeight = Math.floor(Math.random() * (maxHeight - minHeight + 1) + minHeight);
+                
+                obstacles.push({
+                    x: BASE_WIDTH,
+                    topHeight: topHeight,
+                    passed: false
+                });
+            }
+
+            for (let i = 0; i < obstacles.length; i++) {
+                let obs = obstacles[i];
+                obs.x -= obstacleSpeed;
+
+                let playerLeft = playerX + 10;
+                let playerRight = playerX + playerSize - 10; 
+                let playerTop = playerY + 10;
+                let playerBottom = playerY + playerSize - 10;
+
+                let obsLeft = obs.x;
+                let obsRight = obs.x + OBSTACLE_WIDTH;
+                
+                let topObsBottom = obs.topHeight;
+                let bottomObsTop = obs.topHeight + OBSTACLE_GAP;
+
+                if (playerRight > obsLeft && playerLeft < obsRight) {
+                    if (playerTop < topObsBottom || playerBottom > bottomObsTop) {
+                        gameGameOver();
+                    }
+                }
+
+                if (obs.x + OBSTACLE_WIDTH < playerX && !obs.passed) {
+                    score++;
+                    obs.passed = true;
+                    obstacleSpeed += OBSTACLE_SPEED_INCREMENT;
+                    if (score >= WIN_SCORE) {
+                        window.location.href = 'XX6MN.html';
+                    }
+                }
+
+                if (obs.x + OBSTACLE_WIDTH < 0) {
+                    obstacles.shift();
+                    i--;
+                }
+            }
+        }
+
+        function gameGameOver() {
+            isGameOver = true;
+        }
+
+        function drawEmoji(x, y, size, emoji, reversed = false) {
+            ctx.fillStyle = '#000';
+            ctx.font = `${s(size)}px Arial`;
+            if (reversed) {
+                ctx.save();
+                ctx.translate(s(x) + s(size) / 2, s(y) + s(size) / 2);
+                ctx.scale(-1, 1);
+                ctx.translate(- (s(x) + s(size) / 2), - (s(y) + s(size) / 2));
+            }
+            ctx.fillText(emoji, s(x), s(y));
+            if (reversed) {
+                ctx.restore();
+            }
+        }
+
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            ctx.fillStyle = '#87CEEB'; 
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            drawEmoji(50, 100, 60, "☁️");
+            drawEmoji(400, 150, 80, "☁️");
+            drawEmoji(250, 50, 50, "☁️");
+
+            ctx.fillStyle = '#555';
+            for (let obs of obstacles) {
+                ctx.fillRect(s(obs.x), 0, s(OBSTACLE_WIDTH), s(obs.topHeight));
+                ctx.fillRect(s(obs.x), s(obs.topHeight + OBSTACLE_GAP), s(OBSTACLE_WIDTH), s(BASE_HEIGHT - (obs.topHeight + OBSTACLE_GAP)));
+            }
+
+            ctx.fillStyle = '#000';
+            ctx.font = `${s(30)}px Courier New`;
+            ctx.textAlign = 'right';
+            ctx.fillText(`${score}/${WIN_SCORE}`, canvas.width - s(20), s(50));
+            ctx.textAlign = 'left';
+
+            if (isGameOver) {
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.fillStyle = '#FFF';
+                ctx.font = `${s(40)}px Arial`;
+                ctx.textAlign = 'center';
+                ctx.fillText("Juego Terminado", canvas.width / 2, canvas.height / 2);
+                ctx.font = `${s(20)}px Arial`;
+                ctx.fillText("Haz clic para reiniciar", canvas.width / 2, canvas.height / 2 + s(40));
+            } else if (!gameStarted) {
+                ctx.fillStyle = '#000';
+                ctx.font = `${s(20)}px Arial`;
+                ctx.textAlign = 'center';
+                ctx.fillText("Haz clic / Barra espaciadora para volar", canvas.width / 2, canvas.height / 2 + s(100));
+            } else {
+                drawEmoji(playerX, playerY + playerSize, playerSize, "🦅", true);
+            }
+        }
+
+        function gameLoop() {
+            if (!isGameOver) {
+                updatePlayer();
+                updateObstacles();
+                frames++;
+            }
+            draw();
+            requestAnimationFrame(gameLoop);
+        }
+
+        document.addEventListener('keydown', (event) => {
+            if (event.code === 'Space') {
+                event.preventDefault();
+                flap();
+            }
+        });
+
+        canvas.addEventListener('click', () => {
+            flap();
+        });
+
+        gameLoop();
+    </script>
 </body>
 
 </html>
