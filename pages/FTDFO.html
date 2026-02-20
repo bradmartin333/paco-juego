@@ -1,0 +1,857 @@
+<!doctype html>
+<html lang="es">
+
+<head>
+    <title>Paco Juego</title>
+    <meta name="description" content="hot air balloon" />
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="stylesheet" href="../style.css" />
+    <script type="text/javascript" src="../app.js"></script>
+</head>
+
+<body onload="loadCode()">
+    <div id="gameContainer">
+        <canvas id="gameCanvas" style="
+          display: block;
+          background: #1a1a2e;
+          width: 100%;
+          max-width: 700px;
+          margin: 0 auto;
+        "></canvas>
+    </div>
+
+    <div class="navbar">
+        <a href="../index.html">Nuevo Juego</a>
+        <a href="../special-code/index.html">Código Especial</a>
+        <a href="javascript:copyCode()" id="specialCode"></a>
+    </div>
+
+    <script>
+        // ========================================================
+        // TUNING VARIABLES — adjust these to change difficulty
+        // ========================================================
+        const BASE_WIDTH = 700;
+        const BASE_HEIGHT = 600;
+
+        // Altitude
+        const MAX_ALTITUDE = 3000; // meters max altitude
+        const NUM_WIND_LAYERS = 5; // how many horizontal wind bands
+        const HEAT_POWER = 0.05; // how fast burner heats envelope
+        const VENT_POWER = 0.5; // how fast venting cools envelope
+        const HEAT_DECAY = 0.01; // natural cooling rate per frame
+        const BUOYANCY_FACTOR = 1.0; // vertical speed multiplier from heat
+        const VERTICAL_DRAG = 0.8; // vertical velocity damping (inertia)
+        const MAX_VERTICAL_SPEED = 8; // cap on vertical speed m/frame
+
+        // Horizontal movement
+        const MAX_WIND_SPEED = 1.0; // max wind speed per layer
+        const NUM_USEFUL_LAYERS = 2; // how many layers blow toward target
+        const WIND_SPREAD_ANGLE = Math.PI / 4; // ±45° spread from target heading
+        const WIND_CHANGE_INTERVAL = 50000; // frames between wind shifts
+        const HORIZONTAL_DRAG = 0.995; // horizontal velocity damping
+        const FUEL_REFILL_RATE = 0.5; // fuel refilled per frame while landed
+
+        // Map / Target
+        const MAP_RANGE = 5000; // world size in meters (square)
+        const TARGET_DISTANCE = 1000; // meters — must be within this to win
+        const START_DISTANCE_MIN = 2500; // min starting distance to target
+        const START_DISTANCE_MAX = 4000; // max starting distance to target
+
+        // Fuel
+        const MAX_FUEL = 100; // starting fuel
+        const FUEL_BURN_RATE = 0.08; // fuel consumed per frame while burning
+
+        // ========================================================
+        // GAME STATE
+        // ========================================================
+        let canvas, ctx, scale;
+        let frames = 0;
+        let gameStarted = false;
+        let isGameOver = false;
+        let hasWon = false;
+
+        // Balloon state
+        let altitude = 0;
+        let verticalSpeed = 0;
+        let heatLevel = 0; // 0 = ambient, 1 = max heat
+        let isBurning = false;
+        let isVenting = false;
+        let fuel = MAX_FUEL;
+
+        // Position on the map (meters)
+        // +X = East, +Y = South (matches minimap: right=E, down=S)
+        let posX = 0;
+        let posY = 0;
+        let velX = 0;
+        let velY = 0;
+
+        // Target
+        let targetX = 0;
+        let targetY = 0;
+
+        // Wind layers: array of { minAlt, maxAlt, windX, windY, color }
+        // windX positive = pushes East, windY positive = pushes South
+        let windLayers = [];
+        let windChangeTimer = 0;
+
+        // Input
+        let keysDown = {};
+
+        // ========================================================
+        // CANVAS SETUP
+        // ========================================================
+        canvas = document.getElementById("gameCanvas");
+        ctx = canvas.getContext("2d");
+        resizeCanvas();
+        window.addEventListener("resize", resizeCanvas);
+
+        function resizeCanvas() {
+            const container = canvas.parentElement;
+            const maxWidth = Math.min(container.clientWidth, BASE_WIDTH);
+            canvas.width = maxWidth;
+            canvas.height = maxWidth * (BASE_HEIGHT / BASE_WIDTH);
+            scale = canvas.width / BASE_WIDTH;
+        }
+
+        function s(v) {
+            return v * scale;
+        }
+
+        // ========================================================
+        // INITIALIZATION
+        // ========================================================
+        function initGame() {
+            altitude = 0;
+            verticalSpeed = 0;
+            heatLevel = 0;
+            isBurning = false;
+            isVenting = false;
+            fuel = MAX_FUEL;
+            posX = 0;
+            posY = 0;
+            velX = 0;
+            velY = 0;
+            frames = 0;
+            isGameOver = false;
+            hasWon = false;
+            gameStarted = false;
+            windChangeTimer = 0;
+
+            // Place target at random distance
+            let angle = Math.random() * Math.PI * 2;
+            let dist =
+                START_DISTANCE_MIN +
+                Math.random() * (START_DISTANCE_MAX - START_DISTANCE_MIN);
+            targetX = Math.cos(angle) * dist;
+            targetY = Math.sin(angle) * dist;
+
+            generateWindLayers();
+        }
+
+        function generateWindLayers() {
+            windLayers = [];
+            let layerHeight = MAX_ALTITUDE / NUM_WIND_LAYERS;
+            let colors = ["#3a506b", "#5b8c5a", "#e2c044", "#c06c3e", "#8b5fbf"];
+            let colorsDim = [
+                "rgba(58,80,107,0.3)",
+                "rgba(91,140,90,0.3)",
+                "rgba(226,192,68,0.3)",
+                "rgba(192,108,62,0.3)",
+                "rgba(139,95,191,0.3)",
+            ];
+
+            // Angle from start (0,0) toward target
+            let targetAngle = Math.atan2(targetY, targetX);
+
+            // Pick which layers get useful wind (random slots)
+            let layerIndices = [];
+            for (let i = 0; i < NUM_WIND_LAYERS; i++) layerIndices.push(i);
+            // Shuffle and pick first NUM_USEFUL_LAYERS
+            for (let i = layerIndices.length - 1; i > 0; i--) {
+                let j = Math.floor(Math.random() * (i + 1));
+                [layerIndices[i], layerIndices[j]] = [
+                    layerIndices[j],
+                    layerIndices[i],
+                ];
+            }
+            let usefulSet = new Set(layerIndices.slice(0, NUM_USEFUL_LAYERS));
+            // init vars for the index of the useful layers to be used later
+            let usefulA = layerIndices[0];
+            let usefulB = layerIndices[1];
+
+            for (let i = 0; i < NUM_WIND_LAYERS; i++) {
+                let wX, wY;
+                if (i === usefulA || i === usefulB) {
+                    // Useful layer — wind blows roughly toward target
+                    // Spread each useful layer at a different offset so they
+                    // complement each other (one more left, one more right)
+                    let offset =
+                        (Math.random() * 2 - 1) *
+                        (i === usefulA ? -1 : 1) *
+                        WIND_SPREAD_ANGLE;
+                    let angle = targetAngle + offset;
+                    let speed = (0.5 + Math.random() * 0.5) * MAX_WIND_SPEED;
+                    wX = Math.cos(angle) * speed;
+                    wY = Math.sin(angle) * speed;
+                } else {
+                    // Calm layer — zero wind
+                    wX = 0;
+                    wY = 0;
+                }
+                windLayers.push({
+                    minAlt: i * layerHeight,
+                    maxAlt: (i + 1) * layerHeight,
+                    windX: wX,
+                    windY: wY,
+                    color: colors[i % colors.length],
+                    colorDim: colorsDim[i % colorsDim.length],
+                });
+            }
+        }
+
+        function shiftWinds() {
+            for (let layer of windLayers) {
+                layer.windX += (Math.random() * 2 - 1) * 0.4;
+                layer.windY += (Math.random() * 2 - 1) * 0.4;
+                layer.windX = Math.max(
+                    -MAX_WIND_SPEED,
+                    Math.min(MAX_WIND_SPEED, layer.windX),
+                );
+                layer.windY = Math.max(
+                    -MAX_WIND_SPEED,
+                    Math.min(MAX_WIND_SPEED, layer.windY),
+                );
+            }
+        }
+
+        // ========================================================
+        // UPDATE
+        // ========================================================
+        function update() {
+            if (!gameStarted || isGameOver) return;
+            frames++;
+
+            // Heat management
+            if (isBurning && fuel > 0) {
+                heatLevel = Math.min(1, heatLevel + HEAT_POWER);
+                fuel = Math.max(0, fuel - FUEL_BURN_RATE);
+            } else if (isVenting) {
+                heatLevel = Math.min(0, heatLevel - VENT_POWER);
+            }
+
+            // Natural cooling
+            if (!isVenting) heatLevel = Math.max(0, heatLevel - HEAT_DECAY);
+
+            // Buoyancy: heat > 0.3 means lift, < 0.3 means sink
+            let buoyancy = (heatLevel - 0.3) * BUOYANCY_FACTOR;
+            if (buoyancy < 0 && !isVenting) buoyancy = -0.05;
+            verticalSpeed += buoyancy;
+            verticalSpeed *= VERTICAL_DRAG;
+            verticalSpeed = Math.max(
+                -MAX_VERTICAL_SPEED,
+                Math.min(MAX_VERTICAL_SPEED, verticalSpeed),
+            );
+
+            altitude += verticalSpeed;
+            if (altitude < 0) {
+                altitude = 0;
+                verticalSpeed = 0;
+            }
+
+            // Refuel while landed
+            if (altitude <= 0) {
+                fuel = Math.min(MAX_FUEL, fuel + FUEL_REFILL_RATE);
+            }
+            if (altitude > MAX_ALTITUDE) {
+                altitude = MAX_ALTITUDE;
+                verticalSpeed = 0;
+            }
+
+            // Wind effect based on current altitude layer
+            // windX+ = East = +posX, windY+ = South = +posY
+            let currentLayer = getCurrentLayer();
+            if (currentLayer && altitude > 0) {
+                velX += currentLayer.windX * 0.05;
+                velY += currentLayer.windY * 0.05;
+            }
+            velX *= HORIZONTAL_DRAG;
+            velY *= HORIZONTAL_DRAG;
+            posX += velX;
+            posY += velY;
+
+            // Wind shift timer
+            windChangeTimer++;
+            if (windChangeTimer >= WIND_CHANGE_INTERVAL) {
+                windChangeTimer = 0;
+                shiftWinds();
+            }
+
+            // Check win condition
+            let distToTarget = Math.sqrt(
+                (posX - targetX) ** 2 + (posY - targetY) ** 2,
+            );
+            if (distToTarget <= TARGET_DISTANCE && altitude < 50) {
+                hasWon = true;
+                isGameOver = true;
+                setTimeout(() => {
+                    window.location.href = "GPRVC.html";
+                }, 2000);
+            }
+
+            // Check crash — landed too hard
+            if (altitude <= 0 && Math.abs(verticalSpeed) > 0.1) {
+                isGameOver = true;
+            }
+        }
+
+        function getCurrentLayer() {
+            for (let layer of windLayers) {
+                if (altitude >= layer.minAlt && altitude < layer.maxAlt) {
+                    return layer;
+                }
+            }
+            return windLayers[windLayers.length - 1];
+        }
+
+        // ========================================================
+        // DRAWING
+        // ========================================================
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Background gradient — sky
+            let grad = ctx.createLinearGradient(0, 0, 0, canvas.height);
+            grad.addColorStop(0, "#0a0a2a");
+            grad.addColorStop(0.5, "#1a1a4e");
+            grad.addColorStop(1, "#4a90d9");
+            ctx.fillStyle = grad;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            if (!gameStarted && !isGameOver) {
+                drawStartScreen();
+                return;
+            }
+
+            // Layout: left = side view (55%), right = minimap + info (45%)
+            let sideW = canvas.width * 0.55;
+            let mapX = sideW + s(10);
+            let mapW = canvas.width - mapX - s(10);
+
+            drawSideView(0, 0, sideW, canvas.height);
+            drawMinimap(mapX, s(10), mapW, mapW);
+            drawInfoPanel(mapX, s(10) + mapW + s(15), mapW);
+            drawControls(0, canvas.height - s(50), sideW, s(50));
+
+            if (isGameOver) {
+                drawGameOver();
+            }
+        }
+
+        function drawStartScreen() {
+            ctx.fillStyle = "#fff";
+            ctx.font = `${s(28)}px Arial`;
+            ctx.textAlign = "center";
+            ctx.fillText(
+                "🎈 Globo Aerostático 🎈",
+                canvas.width / 2,
+                canvas.height / 2 - s(80),
+            );
+
+            ctx.font = `${s(14)}px Arial`;
+            ctx.fillStyle = "#ccc";
+            let lines = [
+                "W / ↑ / Clic arriba = Quemar (subir)",
+                "S / ↓ / Clic abajo = Ventear (bajar)",
+                "",
+                "Observa las flechas de viento en cada capa.",
+                "Sube o baja para atrapar el viento correcto.",
+                "Dirígete al objetivo 🎯 y aterriza cerca.",
+                "",
+                "Haz clic o presiona Espacio para comenzar",
+            ];
+            for (let i = 0; i < lines.length; i++) {
+                ctx.fillText(
+                    lines[i],
+                    canvas.width / 2,
+                    canvas.height / 2 - s(30) + s(22) * i,
+                );
+            }
+        }
+
+        // Draw a compass-style wind arrow inside a layer band
+        // Uses compass convention: right=E, up=N, down=S on screen
+        function drawWindCompass(cx, cy, radius, windX, windY, color) {
+            if (windX === 0 && windY === 0) return;
+
+            // Draw compass circle
+            ctx.strokeStyle = "rgba(255,255,255,0.15)";
+            ctx.lineWidth = s(1);
+            ctx.beginPath();
+            ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+            ctx.stroke();
+
+            // Tiny compass labels
+            ctx.fillStyle = "rgba(255,255,255,0.35)";
+            ctx.font = `${s(7)}px Arial`;
+            ctx.textAlign = "center";
+            ctx.fillText("N", cx, cy - radius + s(7));
+            ctx.fillText("S", cx, cy + radius - s(1));
+            ctx.textAlign = "left";
+            ctx.fillText("E", cx + radius - s(5), cy + s(3));
+            ctx.textAlign = "right";
+            ctx.fillText("W", cx - radius + s(5), cy + s(3));
+
+            let strength = Math.sqrt(windX * windX + windY * windY);
+            if (strength < 0.15) {
+                // Calm — draw a dot
+                ctx.fillStyle = "rgba(255,255,255,0.4)";
+                ctx.beginPath();
+                ctx.arc(cx, cy, s(2), 0, Math.PI * 2);
+                ctx.fill();
+                return;
+            }
+
+            // Arrow direction: +windX = East (screen right), +windY = South (screen down)
+            // This matches minimap convention: right=E, down=S
+            let angle = Math.atan2(windY, windX);
+            let arrowLen = radius * 0.85 * Math.min(1, strength / MAX_WIND_SPEED);
+
+            let endX = cx + Math.cos(angle) * arrowLen;
+            let endY = cy + Math.sin(angle) * arrowLen;
+
+            // Arrow shaft
+            ctx.strokeStyle = color;
+            ctx.lineWidth = s(2.5);
+            ctx.beginPath();
+            ctx.moveTo(cx, cy);
+            ctx.lineTo(endX, endY);
+            ctx.stroke();
+
+            // Arrow head
+            let headLen = s(7);
+            ctx.beginPath();
+            ctx.moveTo(endX, endY);
+            ctx.lineTo(
+                endX - Math.cos(angle - 0.5) * headLen,
+                endY - Math.sin(angle - 0.5) * headLen,
+            );
+            ctx.moveTo(endX, endY);
+            ctx.lineTo(
+                endX - Math.cos(angle + 0.5) * headLen,
+                endY - Math.sin(angle + 0.5) * headLen,
+            );
+            ctx.stroke();
+        }
+
+        function drawSideView(x, y, w, h) {
+            // Draw wind layer bands
+            let layerPixelH = (h - s(50)) / NUM_WIND_LAYERS;
+            let currentLayer = getCurrentLayer();
+
+            for (let i = 0; i < windLayers.length; i++) {
+                let ly = y + (NUM_WIND_LAYERS - 1 - i) * layerPixelH;
+                let isCurrent = windLayers[i] === currentLayer && altitude > 0;
+
+                // Layer background — highlight current layer
+                ctx.fillStyle = isCurrent
+                    ? windLayers[i].colorDim.replace("0.3", "0.5")
+                    : windLayers[i].colorDim;
+                ctx.fillRect(x, ly, w, layerPixelH);
+
+                // Current layer indicator border
+                if (isCurrent) {
+                    ctx.strokeStyle = windLayers[i].color;
+                    ctx.lineWidth = s(2);
+                    ctx.strokeRect(x + s(1), ly + s(1), w - s(2), layerPixelH - s(2));
+                }
+
+                // Layer altitude label
+                ctx.fillStyle = windLayers[i].color;
+                ctx.font = `${s(10)}px Courier New`;
+                ctx.textAlign = "left";
+                ctx.fillText(
+                    `${Math.round(windLayers[i].minAlt)}m`,
+                    x + s(3),
+                    ly + layerPixelH - s(3),
+                );
+
+                // Wind compass — always visible
+                let compassR = Math.min(s(28), layerPixelH * 0.38);
+                let compassCX = x + w * 0.7;
+                let compassCY = ly + layerPixelH / 2;
+                drawWindCompass(
+                    compassCX,
+                    compassCY,
+                    compassR,
+                    windLayers[i].windX,
+                    windLayers[i].windY,
+                    windLayers[i].color,
+                );
+            }
+
+            // Ground at bottom
+            ctx.fillStyle = "#5a3e28";
+            ctx.fillRect(x, y + h - s(50), w, s(50));
+            ctx.fillStyle = "#7cba3f";
+            ctx.fillRect(x, y + h - s(50), w, s(8));
+
+            // Balloon position on side view
+            let altFraction = altitude / MAX_ALTITUDE;
+            let balloonY = y + h - s(50) - altFraction * (h - s(50));
+
+            // Draw balloon
+            let bx = x + w * 0.35;
+            drawBalloon(bx, balloonY, isBurning);
+
+            // Altitude text
+            ctx.fillStyle = "#fff";
+            ctx.font = `bold ${s(13)}px Courier New`;
+            ctx.textAlign = "right";
+            ctx.fillText(`${Math.round(altitude)}m`, x + w - s(5), y + s(15));
+        }
+
+        function drawBalloon(cx, cy, burning) {
+            // Basket
+            ctx.fillStyle = "#8B4513";
+            ctx.fillRect(cx - s(8), cy + s(5), s(16), s(10));
+
+            // Ropes
+            ctx.strokeStyle = "#654321";
+            ctx.lineWidth = s(1);
+            ctx.beginPath();
+            ctx.moveTo(cx - s(8), cy + s(5));
+            ctx.lineTo(cx - s(12), cy - s(10));
+            ctx.moveTo(cx + s(8), cy + s(5));
+            ctx.lineTo(cx + s(12), cy - s(10));
+            ctx.stroke();
+
+            // Envelope — only glow orange when actively burning AND has fuel
+            let glowing = burning && fuel > 0;
+            let envGrad = ctx.createRadialGradient(
+                cx,
+                cy - s(20),
+                s(2),
+                cx,
+                cy - s(18),
+                s(18),
+            );
+            envGrad.addColorStop(0, glowing ? "#ff6600" : "#ff4444");
+            envGrad.addColorStop(0.6, glowing ? "#ffaa00" : "#cc2222");
+            envGrad.addColorStop(1, glowing ? "#ff8800" : "#991111");
+            ctx.fillStyle = envGrad;
+            ctx.beginPath();
+            ctx.ellipse(cx, cy - s(18), s(15), s(20), 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Stripe
+            ctx.strokeStyle = "rgba(255,255,255,0.4)";
+            ctx.lineWidth = s(2);
+            ctx.beginPath();
+            ctx.moveTo(cx, cy - s(38));
+            ctx.lineTo(cx, cy + s(2));
+            ctx.stroke();
+
+            // Flame when burning with fuel
+            if (glowing) {
+                ctx.font = `${s(12)}px Arial`;
+                ctx.textAlign = "center";
+                ctx.fillText("🔥", cx, cy + s(3));
+            }
+        }
+
+        function drawMinimap(x, y, w, h) {
+            // Background
+            ctx.fillStyle = "rgba(0,0,0,0.6)";
+            ctx.strokeStyle = "#555";
+            ctx.lineWidth = s(1);
+            ctx.fillRect(x, y, w, h);
+            ctx.strokeRect(x, y, w, h);
+
+            let cx = x + w / 2;
+            let cy = y + h / 2;
+            let mapScale = w / 2 / MAP_RANGE;
+
+            // Compass labels — large and clear
+            ctx.fillStyle = "#aaa";
+            ctx.font = `bold ${s(12)}px Arial`;
+            ctx.textAlign = "center";
+            ctx.fillText("N", cx, y + s(14));
+            ctx.fillText("S", cx, y + h - s(5));
+            ctx.textAlign = "left";
+            ctx.fillText("W", x + s(3), cy + s(5));
+            ctx.textAlign = "right";
+            ctx.fillText("E", x + w - s(3), cy + s(5));
+
+            // Grid lines
+            ctx.strokeStyle = "rgba(255,255,255,0.08)";
+            ctx.lineWidth = s(0.5);
+            for (let i = 1; i < 4; i++) {
+                let gx = x + (w / 4) * i;
+                ctx.beginPath();
+                ctx.moveTo(gx, y);
+                ctx.lineTo(gx, y + h);
+                ctx.stroke();
+                let gy = y + (h / 4) * i;
+                ctx.beginPath();
+                ctx.moveTo(x, gy);
+                ctx.lineTo(x + w, gy);
+                ctx.stroke();
+            }
+
+            // Target position on map
+            // +targetX = East = right, +targetY = South = down
+            let tScreenX = cx + (targetX - posX) * mapScale;
+            let tScreenY = cy + (targetY - posY) * mapScale;
+
+            // Clamp target indicator to minimap bounds
+            tScreenX = Math.max(x + s(8), Math.min(x + w - s(8), tScreenX));
+            tScreenY = Math.max(y + s(8), Math.min(y + h - s(8), tScreenY));
+
+            // Target ring
+            let targetR = TARGET_DISTANCE * mapScale;
+            ctx.strokeStyle = "rgba(0,255,0,0.3)";
+            ctx.lineWidth = s(1);
+            ctx.beginPath();
+            ctx.arc(tScreenX, tScreenY, Math.max(s(3), targetR), 0, Math.PI * 2);
+            ctx.stroke();
+
+            // Target emoji
+            ctx.fillStyle = "#0f0";
+            ctx.font = `${s(16)}px Arial`;
+            ctx.textAlign = "center";
+            ctx.fillText("🎯", tScreenX, tScreenY + s(6));
+
+            // Player dot (always center)
+            ctx.fillStyle = "#ff4444";
+            ctx.beginPath();
+            ctx.arc(cx, cy, s(5), 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = "#fff";
+            ctx.beginPath();
+            ctx.arc(cx, cy, s(2.5), 0, Math.PI * 2);
+            ctx.fill();
+
+            // Heading line from player toward target — bold dashed line
+            let angleToTarget = Math.atan2(targetY - posY, targetX - posX);
+            ctx.strokeStyle = "rgba(0,255,100,0.7)";
+            ctx.lineWidth = s(2);
+            ctx.setLineDash([s(4), s(4)]);
+            ctx.beginPath();
+            ctx.moveTo(cx, cy);
+            let lineLen = Math.min(
+                w * 0.4,
+                Math.sqrt((tScreenX - cx) ** 2 + (tScreenY - cy) ** 2),
+            );
+            ctx.lineTo(
+                cx + Math.cos(angleToTarget) * lineLen,
+                cy + Math.sin(angleToTarget) * lineLen,
+            );
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            // Distance & compass heading — large and prominent below minimap
+            let dist = Math.sqrt((posX - targetX) ** 2 + (posY - targetY) ** 2);
+            // Convert angle to compass heading: 0°=N, 90°=E, 180°=S, 270°=W
+            let headingDeg = ((angleToTarget * 180) / Math.PI + 90 + 360) % 360;
+
+            // Cardinal direction label
+            let cardinal = "";
+            if (headingDeg >= 337.5 || headingDeg < 22.5) cardinal = "N";
+            else if (headingDeg < 67.5) cardinal = "NE";
+            else if (headingDeg < 112.5) cardinal = "E";
+            else if (headingDeg < 157.5) cardinal = "SE";
+            else if (headingDeg < 202.5) cardinal = "S";
+            else if (headingDeg < 247.5) cardinal = "SW";
+            else if (headingDeg < 292.5) cardinal = "W";
+            else cardinal = "NW";
+
+            // Big heading display
+            ctx.fillStyle = "#0f0";
+            ctx.font = `bold ${s(18)}px Courier New`;
+            ctx.textAlign = "center";
+            ctx.fillText(
+                `${cardinal} ${Math.round(headingDeg)}°`,
+                x + w / 2,
+                y + h + s(20),
+            );
+
+            ctx.fillStyle = "#fff";
+            ctx.font = `bold ${s(15)}px Courier New`;
+            ctx.fillText(`${Math.round(dist)}m`, x + w / 2, y + h + s(38));
+        }
+
+        function drawInfoPanel(x, y, w) {
+            // Fuel bar only
+            let barY = y + s(48);
+            ctx.fillStyle = "#aaa";
+            ctx.font = `${s(11)}px Courier New`;
+            ctx.textAlign = "left";
+            ctx.fillText("Combustible", x, barY);
+
+            let barTop = barY + s(4);
+            let barW = w - s(4);
+            let barH = s(10);
+            ctx.fillStyle = "#333";
+            ctx.fillRect(x, barTop, barW, barH);
+            let fuelFrac = fuel / MAX_FUEL;
+            ctx.fillStyle = fuelFrac > 0.3 ? "#ff8800" : "#ff2222";
+            ctx.fillRect(x, barTop, barW * fuelFrac, barH);
+        }
+
+        function drawControls(x, y, w, h) {
+            // Burn zone (left half)
+            ctx.fillStyle = isBurning
+                ? "rgba(255,100,0,0.4)"
+                : "rgba(255,100,0,0.15)";
+            ctx.fillRect(x, y, w / 2, h);
+            ctx.fillStyle = "#fff";
+            ctx.font = `${s(12)}px Arial`;
+            ctx.textAlign = "center";
+            ctx.fillText("🔥 Quemar (W/↑)", x + w / 4, y + h / 2 + s(4));
+
+            // Vent zone (right half)
+            ctx.fillStyle = isVenting
+                ? "rgba(100,100,255,0.4)"
+                : "rgba(100,100,255,0.15)";
+            ctx.fillRect(x + w / 2, y, w / 2, h);
+            ctx.fillStyle = "#fff";
+            ctx.fillText("💨 Ventear (S/↓)", x + (w * 3) / 4, y + h / 2 + s(4));
+        }
+
+        function drawGameOver() {
+            ctx.fillStyle = "rgba(0,0,0,0.6)";
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = "#fff";
+            ctx.font = `${s(32)}px Arial`;
+            ctx.textAlign = "center";
+
+            if (hasWon) {
+                ctx.fillText(
+                    "🎉 ¡Aterrizaste!",
+                    canvas.width / 2,
+                    canvas.height / 2 - s(10),
+                );
+                ctx.font = `${s(16)}px Arial`;
+                ctx.fillText(
+                    "¡Objetivo alcanzado!",
+                    canvas.width / 2,
+                    canvas.height / 2 + s(25),
+                );
+            } else {
+                ctx.fillText(
+                    "💥 ¡Te estrellaste!",
+                    canvas.width / 2,
+                    canvas.height / 2 - s(10),
+                );
+                ctx.font = `${s(16)}px Arial`;
+                ctx.fillText(
+                    "Haz clic para reiniciar",
+                    canvas.width / 2,
+                    canvas.height / 2 + s(25),
+                );
+            }
+        }
+
+        // ========================================================
+        // INPUT HANDLING
+        // ========================================================
+        document.addEventListener("keydown", (e) => {
+            keysDown[e.code] = true;
+            if (e.code === "Space") {
+                e.preventDefault();
+                if (!gameStarted) {
+                    gameStarted = true;
+                } else if (isGameOver && !hasWon) {
+                    initGame();
+                    gameStarted = true;
+                }
+            }
+            if (e.code === "KeyW" || e.code === "ArrowUp") {
+                e.preventDefault();
+                if (!gameStarted) {
+                    gameStarted = true;
+                }
+                isBurning = true;
+            }
+            if (e.code === "KeyS" || e.code === "ArrowDown") {
+                e.preventDefault();
+                if (!gameStarted) {
+                    gameStarted = true;
+                }
+                isVenting = true;
+            }
+        });
+
+        document.addEventListener("keyup", (e) => {
+            keysDown[e.code] = false;
+            if (e.code === "KeyW" || e.code === "ArrowUp") {
+                isBurning = false;
+            }
+            if (e.code === "KeyS" || e.code === "ArrowDown") {
+                isVenting = false;
+            }
+        });
+
+        // Touch / click controls
+        canvas.addEventListener("mousedown", (e) => {
+            handlePointerDown(e.offsetY);
+        });
+        canvas.addEventListener("mouseup", () => {
+            isBurning = false;
+            isVenting = false;
+        });
+        canvas.addEventListener(
+            "touchstart",
+            (e) => {
+                e.preventDefault();
+                let rect = canvas.getBoundingClientRect();
+                let touchY = e.touches[0].clientY - rect.top;
+                handlePointerDown(touchY);
+            },
+            { passive: false },
+        );
+        canvas.addEventListener(
+            "touchend",
+            (e) => {
+                e.preventDefault();
+                isBurning = false;
+                isVenting = false;
+            },
+            { passive: false },
+        );
+
+        function handlePointerDown(canvasY) {
+            if (!gameStarted) {
+                gameStarted = true;
+                return;
+            }
+            if (isGameOver && !hasWon) {
+                initGame();
+                gameStarted = true;
+                return;
+            }
+            // Top half = burn, bottom half = vent
+            if (canvasY < canvas.height / 2) {
+                isBurning = true;
+            } else {
+                isVenting = true;
+            }
+        }
+
+        // ========================================================
+        // GAME LOOP
+        // ========================================================
+        function gameLoop() {
+            update();
+            draw();
+            requestAnimationFrame(gameLoop);
+        }
+
+        initGame();
+        gameLoop();
+    </script>
+</body>
+
+</html>
