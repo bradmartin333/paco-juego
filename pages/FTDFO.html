@@ -47,8 +47,8 @@
 
         // Horizontal movement
         const MAX_WIND_SPEED = 1.0; // max wind speed per layer
-        const NUM_USEFUL_LAYERS = 2; // how many layers blow toward target
-        const WIND_SPREAD_ANGLE = Math.PI / 4; // ±45° spread from target heading
+        const NUM_USEFUL_LAYERS = 3; // how many layers blow toward target
+        const WIND_SPREAD_ANGLE = Math.PI; // how much useful winds can spread out (radians)
         const WIND_CHANGE_INTERVAL = 50000; // frames between wind shifts
         const HORIZONTAL_DRAG = 0.995; // horizontal velocity damping
         const FUEL_REFILL_RATE = 0.5; // fuel refilled per frame while landed
@@ -177,20 +177,13 @@
                 ];
             }
             let usefulSet = new Set(layerIndices.slice(0, NUM_USEFUL_LAYERS));
-            // init vars for the index of the useful layers to be used later
-            let usefulA = layerIndices[0];
-            let usefulB = layerIndices[1];
-
             for (let i = 0; i < NUM_WIND_LAYERS; i++) {
                 let wX, wY;
-                if (i === usefulA || i === usefulB) {
+                if (usefulSet.has(i)) {
                     // Useful layer — wind blows roughly toward target
                     // Spread each useful layer at a different offset so they
                     // complement each other (one more left, one more right)
-                    let offset =
-                        (Math.random() * 2 - 1) *
-                        (i === usefulA ? -1 : 1) *
-                        WIND_SPREAD_ANGLE;
+                    let offset = ((i - NUM_USEFUL_LAYERS / 2) / NUM_USEFUL_LAYERS) * WIND_SPREAD_ANGLE;
                     let angle = targetAngle + offset;
                     let speed = (0.5 + Math.random() * 0.5) * MAX_WIND_SPEED;
                     wX = Math.cos(angle) * speed;
@@ -415,7 +408,7 @@
 
             // Arrow direction: +windX = East (screen right), +windY = South (screen down)
             // This matches minimap convention: right=E, down=S
-            let angle = Math.atan2(windY, windX);
+            let angle = Math.atan2(windY, windX) + Math.PI;
             let arrowLen = radius * 0.85 * Math.min(1, strength / MAX_WIND_SPEED);
 
             let endX = cx + Math.cos(angle) * arrowLen;
