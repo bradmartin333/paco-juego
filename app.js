@@ -25,3 +25,10 @@ function getRandom() {
     // without page refresh
     return Math.round(Math.random() * (sites.length - 1));
 }
+
+// Programmatically load GoatCounter
+var script = document.createElement('script');
+script.async = true;
+script.src = '//gc.zgo.at/count.js';
+script.dataset.goatcounter = 'https://bradmartin333.goatcounter.com/count';
+document.head.appendChild(script);
